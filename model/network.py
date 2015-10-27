@@ -29,6 +29,10 @@ class Network(object):
         pass
 
     def train(self):
+        """
+        Takes care of training model, including propagation of errors and updating of
+        parameters.
+        """
         pass
 
 

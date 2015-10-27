@@ -71,11 +71,29 @@ class HiddenLayer(object):
         self.params["weightsOutputTransform"] = self.weightsOutputTransform
 
 
-    def _step(self):
+    def _step(self, input, prevHiddenState, prevCellState):
         """
         Function used for executing computation of one
         time step in hidden state
+        :param input: Input vec at current time step.
+        :param prevHiddenState: Vec of hidden state at previous time step.
+        :param prevCellState: Vec of cell state at previous time step.
         """
+
+        combinedState = np.contatenate((prevHiddenState, input)) # May need to use theano specific version
+        forgetGate = T.nnet.sigmoid(T.dot(self.weightsForget, combinedState)
+                                    + self.biasForget)
+        inputGate = T.nnet.sigmoid(T.dot(self.weightsInput, combinedState) +
+                                   self.biasInput)
+        candidateVals = T.tanh(T.dot(self.weightsCandidate, combinedState) +
+                               self.biasCandidate)
+        candidateVals = forgetGate * prevCellState + inputGate * candidateVals
+        output = T.nnet.sigmoid(T.dot(self.weightsOutputTransform, combinedState) +
+                                self.biasOutputTransform)
+        hiddenState = output * T.tanh(candidateVals)
+
+        return hiddenState, candidateVals
+    
 
     def forwardRun(self):
         """
