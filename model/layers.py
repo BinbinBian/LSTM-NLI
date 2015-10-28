@@ -93,7 +93,7 @@ class HiddenLayer(object):
         hiddenState = output * T.tanh(candidateVals)
 
         return hiddenState, candidateVals
-    
+
 
     def forwardRun(self):
         """
@@ -101,4 +101,14 @@ class HiddenLayer(object):
         Returns output vectors for all timesteps.
         """
         # Will make a call to theano scan function for stepping
-
+        modelOut, updates = theano.scan(HiddenLayer._step,
+                                    n_steps=self.timeSteps)
+                                #sequences=[mask, state_below],
+                                #outputs_info=[T.alloc(numpy_floatX(0.),
+                                #                           n_samples,
+                                #                           dim_proj),
+                                #              T.alloc(numpy_floatX(0.),
+                                #                           n_samples,
+                                #                           dim_proj)],
+                                #name=_p(prefix, '_layers'),
+                                #n_steps=self.timeSteps)
