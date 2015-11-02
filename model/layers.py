@@ -5,12 +5,12 @@ import theano
 import theano.tensor as T
 
 
-# Set random seed for determinism
+# Set random seed for deterministic runs
 SEED = 100
 np.random.seed(SEED)
 
 class HiddenLayer(object):
-    def __init__(self, inputMat, dimInput, dimHiddenState):
+    def __init__(self, dimInput, dimHiddenState):
         """
         :param inputMat: Matrix of input vectors to use for unraveling
                          hidden layer.
@@ -24,9 +24,6 @@ class HiddenLayer(object):
         self.dimHidden = dimHiddenState
 
         self.outputs = None
-        self.inputs = inputMat
-
-        self.timeSteps = inputMat.shape[0]
 
         # TODO: what to use for initializing parameters (all zeros or random?)
 
@@ -80,7 +77,7 @@ class HiddenLayer(object):
         :param prevCellState: Vec of cell state at previous time step.
         """
 
-        combinedState = np.contatenate((prevHiddenState, input)) # May need to use theano specific version
+        combinedState = T.stack([prevHiddenState, input]) # Check that this performs same operation as np.concatenate
         forgetGate = T.nnet.sigmoid(T.dot(self.weightsForget, combinedState)
                                     + self.biasForget)
         inputGate = T.nnet.sigmoid(T.dot(self.weightsInput, combinedState) +
@@ -95,20 +92,24 @@ class HiddenLayer(object):
         return hiddenState, candidateVals
 
 
-    def forwardRun(self):
+    def forwardRun(self, input, timeSteps, numSamples):
         """
         Executes forward computation for designated number of time steps.
         Returns output vectors for all timesteps.
         """
         # Will make a call to theano scan function for stepping
         modelOut, updates = theano.scan(HiddenLayer._step,
-                                    n_steps=self.timeSteps)
-                                #sequences=[mask, state_below],
-                                #outputs_info=[T.alloc(numpy_floatX(0.),
-                                #                           n_samples,
-                                #                           dim_proj),
-                                #              T.alloc(numpy_floatX(0.),
-                                #                           n_samples,
-                                #                           dim_proj)],
-                                #name=_p(prefix, '_layers'),
-                                #n_steps=self.timeSteps)
+                                sequences=[input],
+                                outputs_info=[T.alloc(np.array(0.),
+                                                          numSamples,
+                                                          self.dimHidden),
+                                             T.alloc(np.array(0.),
+                                                          numSamples,
+                                                          self.dimHidden)], # Running a batch of samples at a time
+                                name="layers",
+                                n_steps=timeSteps)
+
+        self.outputs = modelOut # TODO: Maybe only want the first (or last?) element of this list
+        return modelOut, updates
+
+    # TODO: Must work out cost before I can do optimization via SGD, etc.

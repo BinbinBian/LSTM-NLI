@@ -19,18 +19,29 @@ class EmbeddingTable(object):
 
         vocab, embeddings, wordToIndex, indexToWord = self._readData(dataPath)
 
+        if vocab != None:
         # Vocabulary of all embeddings contained in table
-        self.embeddingVocab = set(vocab) # TODO: maybe should make this a set?
-        self.sizeVocab = embeddings.shape[0]
-        self.embeddings = embeddings
-        self.dimEmbeddings = embeddings.shape[1]
+            self.embeddingVocab = set(vocab)
+            self.sizeVocab = embeddings.shape[0]
+            self.embeddings = embeddings
+            self.dimEmbeddings = embeddings.shape[1]
 
-        # Mapping from word to embedding vector index
-        self.wordToIndex = wordToIndex
+            # Mapping from word to embedding vector index
+            self.wordToIndex = wordToIndex
 
-        # Mapping from embedding vector index to word
-        self.indexToWord = indexToWord
+            # Mapping from embedding vector index to word
+            self.indexToWord = indexToWord
+        else:
+            self.embeddingVocab = None
+            self.sizeVocab = None
+            self.embeddings = None
+            self.dimEmbeddings = 5 # Default size for embeddings if no precomputed embeddings given
 
+            # Mapping from word to embedding vector index
+            self.wordToIndex = None
+
+            # Mapping from embedding vector index to word
+            self.indexToWord = None
 
     # Note: There are word vectors for punctuation token -- how to handle those?
     def _readData(self, dataPath):
