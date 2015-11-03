@@ -7,8 +7,6 @@ import sys
 import csv
 import re
 
-from semafor.process_semafor import frametuples
-
 """Add root directory path"""
 root_dir = os.path.dirname(os.path.dirname(__file__))
 sys.path.append(root_dir)
@@ -36,7 +34,6 @@ def leaves(t):
 data_dir = 'nli-data/'
 
 def sick_reader(src_filename, semafor_filename):
-    frames = frametuples(semafor_filename)
     curr_frame = 0
     for example in csv.reader(file(src_filename), delimiter="\t"):
         label, t1, t2 = example[:3]

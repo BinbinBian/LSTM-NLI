@@ -1,7 +1,10 @@
 """ Handles building, training, and testing the model.
 """
 
-# TODO: Run through data and ensure word vector exists for each token
+import sys
+import os
+
+from keras.models import Sequential
 
 def buildModel():
     pass

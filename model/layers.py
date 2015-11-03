@@ -92,14 +92,16 @@ class HiddenLayer(object):
         return hiddenState, candidateVals
 
 
-    def forwardRun(self, input, timeSteps, numSamples):
+    def forwardRun(self, inputMat, timeSteps, numSamples):
         """
         Executes forward computation for designated number of time steps.
         Returns output vectors for all timesteps.
+        :param inputMat: Input matrix of dimension (numSamples, dimProj)
+        :param timeSteps: Number of timesteps to use for unraveling each of 'numSamples'
+        :param numSamples:  Number of samples to do forward computation for this batch
         """
-        # Will make a call to theano scan function for stepping
         modelOut, updates = theano.scan(HiddenLayer._step,
-                                sequences=[input],
+                                sequences=[inputMat],
                                 outputs_info=[T.alloc(np.array(0.),
                                                           numSamples,
                                                           self.dimHidden),
@@ -109,7 +111,7 @@ class HiddenLayer(object):
                                 name="layers",
                                 n_steps=timeSteps)
 
-        self.outputs = modelOut # TODO: Maybe only want the first (or last?) element of this list
+        self.outputs = modelOut[-1] # TODO: Maybe only want the first (or last?) element of this list
         return modelOut, updates
 
     # TODO: Must work out cost before I can do optimization via SGD, etc.

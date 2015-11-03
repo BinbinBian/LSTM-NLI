@@ -29,22 +29,22 @@ class Network(object):
         self.dimHidden = dimHidden
         self.optimizer = optimizer
 
-    def _buildModel(self):
+    def _buildModel(self, ):
         """
         Handles building of model, including initializing necessary parameters, defining
         loss functions, etc.
         """
         self.hiddenLayer = HiddenLayer(self.dimHidden, self.dimInput)
-        #self.hiddenLayer.forwardRun()
+        #self.hiddenLayer.forwardRun(self.numTimesteps)
 
-        prediction = T.nnet.softmax(T.dot(self.hiddenLayer.outputs,
+        prediction = T.nnet.softmax(T.dot(self.hiddenLayer.outputs, # May want to consider making outputs (numSamples, dimOutput) dimension
                                         self.hiddenLayer.weightsOutputTransform)
                                         + self.hiddenLayer.biasOutputTransform)
         predictionProbs = theano.function([input], prediction, name='predictionProbs')
 
         loss = -1 * T.log(prediction[T.arange(10), np.arange(10)]).mean() # TODO: need to fix this
 
-         
+
         raise NotImplementedError
 
     def train(self, numEpochs=5, batchSize=10):
@@ -52,6 +52,11 @@ class Network(object):
         Takes care of training model, including propagation of errors and updating of
         parameters.
         """
+
+        # Will have entire dataset here, represented as (numSamples, numTimesteps) where each entry
+        # is index of appropriate lookup in embedding table
+
+        # Will make call to _buildModel here
         raise NotImplementedError
 
 
