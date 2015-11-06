@@ -30,7 +30,8 @@ def leaves(t):
             words += leaves(x)
     return words
 
-data_dir = 'nli-data/'
+os.chdir("../")
+data_dir = os.getcwd() + "/data/"
 
 def sick_reader(src_filename):
     for example in csv.reader(file(src_filename), delimiter="\t"):
@@ -65,15 +66,15 @@ def snli_reader(src_filename):
 
 #Readers for processing SICK datasets
 def snli_train_reader():
-    return sick_reader(src_filename=data_dir+"snli_train.txt")
+    return sick_reader(src_filename=data_dir+"snli_1.0rc3_train.txt")
 
 
 def snli_dev_reader():
-    return sick_reader(src_filename=data_dir+"clean_snli_1.0rc3_dev.txt")
+    return sick_reader(src_filename=data_dir+"snli_1.0rc3_dev.txt")
 
 
 def snli_test_reader():
-    return sick_reader(src_filename=data_dir+"clean_snli_1.0rc3_test.txt")
+    return sick_reader(src_filename=data_dir+"snli_1.0rc3_test.txt")
 
 
 #TODO: Test this!
@@ -96,7 +97,7 @@ def computeDataStatistics(dataSet="dev"):
     minSenLength = float("inf")
     maxSenLength = float("-inf")
 
-    for label, t1Tree, t2Tree in reader:
+    for label, t1Tree, t2Tree in reader():
         labels.append(label)
 
         t1Tokens = leaves(t1Tree)
@@ -120,13 +121,15 @@ def computeDataStatistics(dataSet="dev"):
         sentences.append([t1Tokens, t2Tokens])
 
     # Output results to JSON file
-    with open("labels.json", "w") as labelsFile:
+    with open(dataSet+"labels.json", "w") as labelsFile:
         json.dump({'labels': labels}, labelsFile)
 
-    with open("dataStats.json", "w") as dataStatsFile:
+    with open(dataSet+"dataStats.json", "w") as dataStatsFile:
         json.dump({"vocabSize": len(vocab), "minSentLen": minSenLength,
                    "maxSentLen": maxSenLength}, dataStatsFile)
 
-    with open("sentences.json", "w") as sentenceFile:
+    with open(dataSet+"sentences.json", "w") as sentenceFile:
         json.dump({"sentences": sentences}, sentenceFile)
 
+
+    return vocab, sentences, labels, minSenLength, maxSenLength
