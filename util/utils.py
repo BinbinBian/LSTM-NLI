@@ -34,10 +34,13 @@ os.chdir("../")
 data_dir = os.getcwd() + "/data/"
 
 def sick_reader(src_filename):
+    count = 1
     for example in csv.reader(file(src_filename), delimiter="\t"):
+        print "Sentence count: ", count
         label, t1, t2 = example[:3]
-        if not label.startswith('%'): # Some files use leading % for comments.
+        if not label.startswith('%') and not label=="gold_label": # Some files use leading % for comments.
             yield (label, str2tree(t1), str2tree(t2))
+        count += 1
 
 
 #Readers for processing SICK datasets
@@ -77,7 +80,6 @@ def snli_test_reader():
     return sick_reader(src_filename=data_dir+"snli_1.0rc3_test.txt")
 
 
-#TODO: Test this!
 def computeDataStatistics(dataSet="dev"):
     """
     Iterate over data using provided reader and compute statistics. Output values to JSON files.
@@ -121,14 +123,14 @@ def computeDataStatistics(dataSet="dev"):
         sentences.append([t1Tokens, t2Tokens])
 
     # Output results to JSON file
-    with open(dataSet+"labels.json", "w") as labelsFile:
+    with open(dataSet+"_labels.json", "w") as labelsFile:
         json.dump({'labels': labels}, labelsFile)
 
-    with open(dataSet+"dataStats.json", "w") as dataStatsFile:
+    with open(dataSet+"_dataStats.json", "w") as dataStatsFile:
         json.dump({"vocabSize": len(vocab), "minSentLen": minSenLength,
                    "maxSentLen": maxSenLength}, dataStatsFile)
 
-    with open(dataSet+"sentences.json", "w") as sentenceFile:
+    with open(dataSet+"_sentences.json", "w") as sentenceFile:
         json.dump({"sentences": sentences}, sentenceFile)
 
 

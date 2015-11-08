@@ -43,6 +43,7 @@ class EmbeddingTable(object):
             # Mapping from embedding vector index to word
             self.indexToWord = None
 
+
     # Note: There are word vectors for punctuation token -- how to handle those?
     def _readData(self, dataPath):
         """
@@ -67,7 +68,15 @@ class EmbeddingTable(object):
         return wordVocab, wordVectors, wordToIndex, indexToWord
 
 
-    def getWordEmbedding(self, word):
+    def getIdxFromWord(self, word):
+        """
+        Return the idx in the embedding lookup table for the given word. Return
+         -1 if word not found in lookup table.
+        """
+        return self.wordToIndex[word]
+
+
+    def getEmbeddingFromWord(self, word):
         """
         Return embedding vector for given word. If embedding not found,
         return a vector of random values.
@@ -80,3 +89,36 @@ class EmbeddingTable(object):
             print "Word not found in embedding matrix. Returning random vector..."
             return np.random.randn(self.dimEmbeddings)
 
+
+    def getEmbeddingfromIdx(self, idx):
+        """
+        Returns word embedding from provided idx, where idx
+         assumed to be index of embedding in lookup table.
+        :param idx: Idx of word embedding
+        """
+        return self.embeddings[idx]
+
+
+    def convertSentToIdxMatrix(self, sentence):
+        """
+        Converts a given sentence into a matrix of indices for embedding lookup table.
+        :param sentence: Sentence to convert into matrix of indices
+        :return: List of lists of embedding idx
+        """
+        tokens = [word.lower() for word in sentence.split()]
+        allIdx = [[self.getIdxFromWord(word)] for word in tokens]
+
+        return allIdx
+
+
+    def convertIdxMatrixToEmbeddingList(self, idxList):
+        """
+        Converts list of idx of form [[2], [5]] where each idx
+        represents idx of word embedding to list of appropriate embeddings
+        of form [[0.4 0.2], [0.2 0.8]]
+
+        :param idxList: List of word idx
+        :return: List of embeddings
+        """
+        embeddingList = [self.getEmbeddingfromIdx(idx[0]) for idx in idxList]
+        return embeddingList
