@@ -10,12 +10,13 @@ SEED = 100
 np.random.seed(SEED)
 
 class HiddenLayer(object):
-    def __init__(self, dimInput, dimHiddenState):
+    def __init__(self, dimInput, dimHiddenState, layerName):
         """
         :param inputMat: Matrix of input vectors to use for unraveling
                          hidden layer.
         :param dimInput: Dimension of vector of input to hidden cell.
         :param dimState: Dimension of hidden HiddenState.
+        :param layerName: Name of current LSTM layer ('premise', 'hypothesis')
         """
         # Dictionary of model parameters.
         self.params = {}
@@ -28,44 +29,44 @@ class HiddenLayer(object):
         # TODO: what to use for initializing parameters (all zeros or random?)
 
         # Parameters for forget gate
-        self.biasForget = T.shared(np.randn(dimHiddenState), name="biasForget")
-        self.weightsForget = T.shared(np.randn(dimHiddenState, (dimInput
+        self.b_f= T.shared(np.randn(dimHiddenState), name="biasForget_"+layerName)
+        self.W_f= T.shared(np.randn(dimHiddenState, (dimInput
                                                                 + dimHiddenState)),
-                                      name="weightsForget")
+                                      name="weightsForget_"+layerName)
 
         # Parameters for input gate
-        self.biasInput = T.shared(np.randn(dimHiddenState), name="biasInput")
-        self.weightsInput = T.shared(np.randn(dimHiddenState, (dimInput
+        self.b_i= T.shared(np.randn(dimHiddenState), name="biasInput_"+layerName)
+        self.W_i= T.shared(np.randn(dimHiddenState, (dimInput
                                                                 + dimHiddenState)),
-                                     name="weightsInput")
+                                     name="weightsInput_"+layerName)
 
         # Parameters for candidate values
-        self.biasCandidate = T.shared(np.randn(dimHiddenState),
-                                      name="biasCandidate")
-        self.weightsCandidate = T.shared(np.randn(dimHiddenState, (dimInput
+        self.b_c= T.shared(np.randn(dimHiddenState),
+                                      name="biasCandidate_"+layerName)
+        self.W_c= T.shared(np.randn(dimHiddenState, (dimInput
                                                                 + dimHiddenState)),
-                                         name="weightsCandidate")
+                                         name="weightsCandidate_"+layerName)
 
         # Parameters for final output vector transform (for final
         # classification)
-        self.biasOutputTransform = T.shared(np.randn(dimHiddenState),
-                                            name="biasOutputTransform")
-        self.weightsOutputTransform = T.shared(np.randn(dimHiddenState, (dimInput
+        self.b_o= T.shared(np.randn(dimHiddenState),
+                                            name="biasOutputTransform_"+layerName)
+        self.W_o= T.shared(np.randn(dimHiddenState, (dimInput
                                                                 + dimHiddenState)),
-                                               name="weightsOutputTransform")
+                                               name="weightsOutputTransform_"+layerName)
 
         # Add shared vars to params dict
-        self.params["biasInput"] = self.biasInput
-        self.params["weightsInput"] = self.weightsInput
+        self.params["biasInput_"+layerName] = self.b_i
+        self.params["weightsInput_"+layerName] = self.W_i
 
-        self.params["biasForget"] = self.biasForget
-        self.params["weightsForget"] = self.weightsForget
+        self.params["biasForget_"+layerName] = self.b_f
+        self.params["weightsForget_"+layerName] = self.W_f
 
-        self.params["biasCandidate"] = self.biasCandidate
-        self.params["weightsCandidate"] = self.weightsCandidate
+        self.params["biasCandidate_"+layerName] = self.b_c
+        self.params["weightsCandidate_"+layerName] = self.W_c
 
-        self.params["biasOutputTransform"] = self.biasOutputTransform
-        self.params["weightsOutputTransform"] = self.weightsOutputTransform
+        self.params["biasOutputTransform_"+layerName] = self.b_o
+        self.params["weightsOutputTransform_"+layerName] = self.W_o
 
 
     def _step(self, input, prevHiddenState, prevCellState):
@@ -78,15 +79,15 @@ class HiddenLayer(object):
         """
 
         combinedState = T.stack([prevHiddenState, input]) # Check that this performs same operation as np.concatenate
-        forgetGate = T.nnet.sigmoid(T.dot(self.weightsForget, combinedState)
-                                    + self.biasForget)
-        inputGate = T.nnet.sigmoid(T.dot(self.weightsInput, combinedState) +
-                                   self.biasInput)
-        candidateVals = T.tanh(T.dot(self.weightsCandidate, combinedState) +
-                               self.biasCandidate)
+        forgetGate = T.nnet.sigmoid(T.dot(self.W_f, combinedState)
+                                    + self.b_f)
+        inputGate = T.nnet.sigmoid(T.dot(self.W_i, combinedState) +
+                                   self.b_i)
+        candidateVals = T.tanh(T.dot(self.W_c, combinedState) +
+                               self.b_c)
         candidateVals = forgetGate * prevCellState + inputGate * candidateVals
-        output = T.nnet.sigmoid(T.dot(self.weightsOutputTransform, combinedState) +
-                                self.biasOutputTransform)
+        output = T.nnet.sigmoid(T.dot(self.W_o, combinedState) +
+                                self.b_o)
         hiddenState = output * T.tanh(candidateVals)
 
         return hiddenState, candidateVals
