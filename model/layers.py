@@ -24,9 +24,11 @@ class HiddenLayer(object):
         self.inputDim = dimInput
         self.dimHidden = dimHiddenState
 
+        self.numLabels = 3 # Represents number of categories used for classification
+
         self.outputs = None
 
-        # TODO: what to use for initializing parameters (all zeros or random?)
+        # TODO: what to use for initializing parameters (random?)
 
         # Parameters for forget gate
         self.b_f= theano.shared(np.random.randn(1, dimHiddenState), name="biasForget_"+layerName, broadcastable=(True, False))
@@ -55,6 +57,18 @@ class HiddenLayer(object):
                                                                 + dimHiddenState)),
                                                name="weightsOutputTransform_"+layerName)
 
+
+        # Parameters for linear projection from output of forward pass to a
+        # vector with dimension equal to number of categories being classified
+        # via one more softmax
+        self.b_cand= theano.shared(np.random.randn(1, self.numLabels),
+                                            name="biasCandTransform"+layerName, broadcastable=(True, False))
+        self.W_cand= theano.shared(np.random.randn(dimHiddenState, self.numLabels),
+                                               name="weightsCandTransform"+layerName)
+
+        self.finalCandidateVal = None # Stores final cell state from scan in forwardPass
+        self.finalHiddenVal = None  # Stores final hidden state from scan in forwardPass
+
         # Add shared vars to params dict
         self.params["biasInput_"+layerName] = self.b_i
         self.params["weightsInput_"+layerName] = self.W_i
@@ -77,48 +91,50 @@ class HiddenLayer(object):
         :param prevHiddenState: Vec of hidden state at previous time step.
         :param prevCellState: Vec of cell state at previous time step.
         """
+        #print "prev cell: " #prevCellState.eval()
         combinedState = T.concatenate([prevHiddenState, input], axis=1) # Should be (numSamples, dimHidden + dimInput)
+        #print "Combined: "# combinedState.eval()
         forgetGate = T.nnet.sigmoid(T.dot(combinedState, self.W_f.T)
                                     + self.b_f) # Should be (numSamples, dimHidden)
+        #print "Forget: " #, forgetGate.eval()
         inputGate = T.nnet.sigmoid(T.dot(combinedState, self.W_i.T) +
                                     self.b_i) # Ditto
+        #print "Input: " #, inputGate.eval()
         candidateVals = T.tanh(T.dot(combinedState, self.W_c.T) +
                                 self.b_c) # Ditto
+        #print "Candidate Vals: " #, candidateVals.eval()
         candidateVals = forgetGate * prevCellState + inputGate * candidateVals # Ditto
+        #print "Transformed Candidate Vals: " #, candidateVals.eval()
         output = T.nnet.sigmoid(T.dot(combinedState, self.W_o.T) +
                                  self.b_o) # Ditto
+        #print "Output: " #, output.eval()
         hiddenState = output * T.tanh(candidateVals) # Ditto
+        #print "Hidden State: " #, hiddenState.eval()
 
+        #print "Hidden State After Type: ", type(hiddenState)
         return hiddenState, candidateVals
 
     def forwardRun(self, inputMat, timeSteps, numSamples):
         """
         Executes forward computation for designated number of time steps.
         Returns output vectors for all timesteps.
-        :param inputMat: Input matrix of dimension (numSamples, dimProj)
+        :param inputMat: Input matrix of dimension (numTimesteps, numSamples, dimProj)
         :param timeSteps: Number of timesteps to use for unraveling each of 'numSamples'
         :param numSamples:  Number of samples to do forward computation for this batch
         """
-        # modelOut, updates = theano.scan(HiddenLayer._step,
-        #                         sequences=[inputMat],
-        #                         outputs_info=[T.alloc(np.array(0.),
-        #                                                   numSamples,
-        #                                                   self.dimHidden),
-        #                                      T.alloc(np.array(0.),
-        #                                                   numSamples,
-        #                                                   self.dimHidden)], # Running a batch of samples at a time
-        #                         name="layers",
-        #                         n_steps=timeSteps)
+        hiddenInit = T.unbroadcast(T.alloc(np.cast[theano.config.floatX](1.), inputMat.shape[1], self.dimHidden),0)
+        candidateValsInit = T.unbroadcast(T.alloc(np.cast[theano.config.floatX](1.), inputMat.shape[1], self.dimHidden), 0)
 
-        modelOut, updates = theano.scan(HiddenLayer._step,
+        modelOut, updates = theano.scan(self._step,
                                 sequences=[inputMat],
-                                outputs_info=[T.alloc(np.array(0.),
-                                                          numSamples,
-                                                          self.dimHidden)], # Running a batch of samples at a time
+                                outputs_info=[hiddenInit, candidateValsInit], # Running a batch of samples at a time
                                 name="layers",
                                 n_steps=timeSteps)
 
-        self.outputs = modelOut[-1]
+        self.finalCandidateVal = modelOut[-1][1]
+        self.finalHiddenVal = modelOut[-1][0]
+
         return modelOut, updates
+
 
     # TODO: Must work out cost before I can do optimization via SGD, etc.

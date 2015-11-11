@@ -36,7 +36,7 @@ def testIdxListToEmbedList():
     print table.convertIdxMatrixToEmbeddingList(idxList)
 
 
-def testHiddenLayer():
+def testHiddenLayerStep():
     hLayer = HiddenLayer(2,2, "blah")
     print hLayer.b_f.eval()
     print hLayer.W_f.eval() # Should give same values across runs
@@ -61,9 +61,16 @@ def testHiddenLayer():
     print "-" * 100
     hLayer._step(input, nextnextHidden, nextnextCell)
 
+
+def testHiddenLayerScan():
+    hLayer = HiddenLayer(2, 2, "testHidden")
+    inputMat = T.as_tensor_variable(np.random.randn(2,1,2)) #(numTimeSteps, numSamples, dimHidden)
+    hLayer.forwardRun(inputMat, 2, 100)
+
 if __name__ == "__main__":
   # testEmbeddings()
   # testHiddenLayer()
   #testSentToIdxMat()
   #testIdxListToEmbedList()
-  testHiddenLayer()
+  #testHiddenLayerStep()
+  testHiddenLayerScan()
