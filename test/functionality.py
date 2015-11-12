@@ -93,6 +93,32 @@ def testGetPrediction():
     print "Cat 2 out: ", hLayer._getPredictions(cat2Output).eval()
 
 
+def testCrossEntropyLoss():
+    hLayer = HiddenLayer(2, 2, "testHidden")
+    yPred = T.as_tensor_variable(np.array([0.3, 0.5, 0.2], dtype=np.float64))
+    yTarget = T.as_tensor_variable(np.array([0., 1., 0.], dtype=np.float64))
+    loss = hLayer._computeCrossEntropyCost(yPred, yTarget)
+
+    print "Cross Entropy loss: ", loss.eval()
+
+    yPred2 = T.as_tensor_variable(np.array([[0.3, 0.5, 0.2], [0.4, 0.3, 0.3]], dtype=np.float64))
+    yTarget2 = T.as_tensor_variable(np.array([[0., 1., 0.], [1, 0, 0]], dtype=np.float64))
+    loss2 = hLayer._computeCrossEntropyCost(yPred2, yTarget2)
+
+    print "Second cross entropy loss: ", loss2.eval()
+
+
+def testCostFuncPipeline():
+    hLayer = HiddenLayer(2, 2, "testHidden")
+    yTarget = T.as_tensor_variable(np.array([0., 1., 0.], dtype=np.float64))
+    x = T.as_tensor_variable(np.array([[0.5, 0.6]], dtype=np.float64))
+
+    # TODO: fix dimension mismatch bug-- curr shape: (1,2)
+    costFunc = hLayer._costFunc(x, yTarget, numTimesteps=2)
+    print "Cost: ", costFunc(x, yTarget)
+
+
+
 if __name__ == "__main__":
   # testEmbeddings()
   # testHiddenLayer()
@@ -101,4 +127,6 @@ if __name__ == "__main__":
   #testHiddenLayerStep()
   #testHiddenLayerScan()
   #testCatProjection()
-  testGetPrediction()
+  #testGetPrediction()
+  #testCrossEntropyLoss()
+  testCostFuncPipeline()

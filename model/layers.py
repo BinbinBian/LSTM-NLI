@@ -147,8 +147,7 @@ class HiddenLayer(object):
         catOutput = T.dot(self.finalHiddenVal, self.W_cat) + self.b_cat
         return catOutput
 
-    @staticmethod
-    def _getPredictions(catOutput):
+    def _getPredictions(self, catOutput):
         """
         Apply softmax to final vector of outputs
         :return:
@@ -156,5 +155,49 @@ class HiddenLayer(object):
         softmaxOut = T.nnet.softmax(catOutput)
         return softmaxOut
 
-    # TODO: define a _cost function that computes all of the steps above
 
+    def _computeCrossEntropyCost(self, yPred, yTarget):
+        """
+        Given predictions returned through softmax projection, compute
+        cross entropy cost
+        :param yPred: Output from LSTM with softmax applied
+        :return: Loss for given predictions and targets
+        """
+        return T.nnet.categorical_crossentropy(yPred, yTarget).mean()
+
+
+    def _computeAccuracy(self, yPred, yTarget):
+        """
+        Computes accuracy for target and predicted values
+        :param yPred:
+        :param yTarget:
+        :return:
+        """
+        return T.mean(T.eq(T.argmax(yPred, axis=-1), T.argmax(yTarget, axis=-1)))
+
+
+    def _costFunc(self, x, yTarget, numTimesteps):
+        """
+        Compute end-to-end cost function for a collection of input data.
+        :return:
+        """
+        catOutput = self.forwardRun(x, numTimesteps, 100) # Last parameter is num Samples -- may want to remove that
+        softmaxOut = self._getPredictions(catOutput)
+        cost = self._computeCrossEntropyCost(softmaxOut, yTarget)
+
+        return theano.function([x, yTarget], cost, name='LSTM_cost_function')
+
+
+    def _computeGrads(self, x, yTarget, costFunc):
+        """
+        Computes gradients for cost function with respect to all parameters.
+        :param costFunc:
+        :return:
+        """
+        grads = T.grad(costFunc, wrt=self.params.values())
+        costGrad = theano.function([x, yTarget], grads, name='costGrad')
+        return costGrad
+
+
+
+    # TODO: convert all labels to (num_samples, 3) matrix with 1 in target category column
