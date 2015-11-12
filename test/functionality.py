@@ -67,10 +67,38 @@ def testHiddenLayerScan():
     inputMat = T.as_tensor_variable(np.random.randn(2,1,2)) #(numTimeSteps, numSamples, dimHidden)
     hLayer.forwardRun(inputMat, 2, 100)
 
+
+def testCatProjection():
+    hLayer = HiddenLayer(2, 2, "testHidden")
+    inputMat = T.as_tensor_variable(np.random.randn(2,1,2)) #(numTimeSteps, numSamples, dimHidden)
+    hLayer.forwardRun(inputMat, 2, 100)
+    catOutput = hLayer._projectToCategories()
+
+    print "Final Hidden Val: ", hLayer.finalHiddenVal.eval()
+    print "W cat: ", hLayer.W_cat.eval()
+    print "b cat: ", hLayer.b_cat.eval()
+    print "Cat Out: ", catOutput.eval()
+
+def testGetPrediction():
+    hLayer = HiddenLayer(2, 2, "testHidden")
+    inputMat = T.as_tensor_variable(np.random.randn(2,1,2)) #(numTimeSteps, numSamples, dimHidden)
+    hLayer.forwardRun(inputMat, 2, 100)
+    catOutput = hLayer._projectToCategories()
+
+    print "Cat Out: ", catOutput.eval()
+    softmaxOut = hLayer._getPredictions(catOutput)
+    print "Softmax out: ", softmaxOut.eval()
+
+    cat2Output = T.alloc(np.array([[3,4,1],[2,3,4]], dtype=np.float64), 2, 3)
+    print "Cat 2 out: ", hLayer._getPredictions(cat2Output).eval()
+
+
 if __name__ == "__main__":
   # testEmbeddings()
   # testHiddenLayer()
   #testSentToIdxMat()
   #testIdxListToEmbedList()
   #testHiddenLayerStep()
-  testHiddenLayerScan()
+  #testHiddenLayerScan()
+  #testCatProjection()
+  testGetPrediction()

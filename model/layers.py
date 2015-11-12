@@ -10,7 +10,7 @@ SEED = 100
 np.random.seed(SEED)
 
 class HiddenLayer(object):
-    def __init__(self, dimInput, dimHiddenState, layerName):
+    def __init__(self, dimInput, dimHiddenState, layerName, numCategories=3):
         """
         :param inputMat: Matrix of input vectors to use for unraveling
                          hidden layer.
@@ -24,7 +24,7 @@ class HiddenLayer(object):
         self.inputDim = dimInput
         self.dimHidden = dimHiddenState
 
-        self.numLabels = 3 # Represents number of categories used for classification
+        self.numLabels = numCategories # Represents number of categories used for classification
 
         self.outputs = None
 
@@ -61,10 +61,10 @@ class HiddenLayer(object):
         # Parameters for linear projection from output of forward pass to a
         # vector with dimension equal to number of categories being classified
         # via one more softmax
-        self.b_cand= theano.shared(np.random.randn(1, self.numLabels),
-                                            name="biasCandTransform"+layerName, broadcastable=(True, False))
-        self.W_cand= theano.shared(np.random.randn(dimHiddenState, self.numLabels),
-                                               name="weightsCandTransform"+layerName)
+        self.b_cat= theano.shared(np.random.randn(1, self.numLabels),
+                                            name="biasCatTransform"+layerName, broadcastable=(True, False))
+        self.W_cat= theano.shared(np.random.randn(dimHiddenState, self.numLabels),
+                                               name="weightsCatTransform"+layerName)
 
         self.finalCandidateVal = None # Stores final cell state from scan in forwardPass
         self.finalHiddenVal = None  # Stores final hidden state from scan in forwardPass
@@ -81,6 +81,9 @@ class HiddenLayer(object):
 
         self.params["biasOutputTransform_"+layerName] = self.b_o
         self.params["weightsOutputTransform_"+layerName] = self.W_o
+
+        self.params["biasCatTransform_"+layerName] = self.b_cat
+        self.params["weightsCatTransform"+layerName] = self.W_cat
 
 
     def _step(self, input, prevHiddenState, prevCellState):
@@ -136,5 +139,22 @@ class HiddenLayer(object):
 
         return modelOut, updates
 
+    def _projectToCategories(self):
+        """
+        Takes the final output of the forward run of an LSTM layer and projects
+         to a vector of dim equal to number of categories we are classifying over.
+        """
+        catOutput = T.dot(self.finalHiddenVal, self.W_cat) + self.b_cat
+        return catOutput
 
-    # TODO: Must work out cost before I can do optimization via SGD, etc.
+    @staticmethod
+    def _getPredictions(catOutput):
+        """
+        Apply softmax to final vector of outputs
+        :return:
+        """
+        softmaxOut = T.nnet.softmax(catOutput)
+        return softmaxOut
+
+    # TODO: define a _cost function that computes all of the steps above
+
