@@ -8,9 +8,13 @@ import theano.tensor as T
 
 from model.embeddings import EmbeddingTable
 from model.layers import HiddenLayer
+from util.utils import convertLabelsToMat
 
 dataPath = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/"
 
+def testLabelsMat():
+    labelsMat = convertLabelsToMat("/Users/mihaileric/Documents/Research/LSTM-NLI/test_labels.json")
+    print labelsMat
 
 def testEmbeddings():
     table = EmbeddingTable(dataPath+"glove.6B.50d.txt.gz")
@@ -109,17 +113,23 @@ def testCrossEntropyLoss():
 
 
 def testCostFuncPipeline():
-    hLayer = HiddenLayer(2, 2, "testHidden")
-    yTarget = T.as_tensor_variable(np.array([0., 1., 0.], dtype=np.float64))
-    x = T.as_tensor_variable(np.array([[0.5, 0.6]], dtype=np.float64))
+    hLayer = HiddenLayer(dimInput=2, dimHiddenState=2, layerName="testHidden")
+    yTarget = T.as_tensor_variable(np.array([[0., 1., 0.]], dtype=np.float64))
+    x = T.as_tensor_variable(np.array([[[0.5, 0.6]]], dtype=np.float64))
 
+    x = T.dmatrix("testX")
+    yTarget = T.dmatrix("testyTarget")
+
+    xNP = np.array([[[0.5, 0.6]]], dtype = np.float64)
+    yTargetNP = np.array([[0., 1., 0.]], dtype=np.float64)
     # TODO: fix dimension mismatch bug-- curr shape: (1,2)
-    costFunc = hLayer._costFunc(x, yTarget, numTimesteps=2)
-    print "Cost: ", costFunc(x, yTarget)
+    costFunc = hLayer._costFunc(x, yTarget, numTimesteps=1)
+    print "Cost: ", costFunc(xNP, yTargetNP)
 
 
 
 if __name__ == "__main__":
+  # testLabelsMat()
   # testEmbeddings()
   # testHiddenLayer()
   #testSentToIdxMat()

@@ -2,6 +2,7 @@
 
 import csv
 import json
+import numpy as np
 import os
 import re
 import sys
@@ -93,13 +94,18 @@ def computeDataStatistics(dataSet="dev"):
     else:
         reader = snli_test_reader
 
+    # TODO: Fix error in "-" appearing as a label in dataset
+
     sentences = list()
     labels = list()
     vocab = set()
     minSenLength = float("inf")
     maxSenLength = float("-inf")
+    allLabels = ['entailment', 'contradiction', 'neutral']
 
     for label, t1Tree, t2Tree in reader():
+        if label not in allLabels:
+            continue
         labels.append(label)
 
         t1Tokens = leaves(t1Tree)
@@ -135,3 +141,22 @@ def computeDataStatistics(dataSet="dev"):
 
 
     return vocab, sentences, labels, minSenLength, maxSenLength
+
+def convertLabelsToMat(labelFile):
+    """
+    Converts json file of labels to a (numSamples, 3) matrix with a 1 in the column
+    corresponding to the label.
+    :param labelFile:
+    :return: numpy matrix corresponding to the labels
+    """
+    labelsList = ["entailment", "contradiction", "neutral"]
+    with open(labelFile, "r") as f:
+        labelsObj = json.load(f)
+        labels = labelsObj["labels"]
+
+        labelsMat = np.zeros((len(labels), 3), dtype=np.float64)
+        for idx, label in enumerate(labels):
+            labelIdx = labelsList.index(label)
+            labelsMat[idx][labelIdx] = 1.
+
+    return labelsMat

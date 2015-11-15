@@ -125,6 +125,8 @@ class HiddenLayer(object):
         :param timeSteps: Number of timesteps to use for unraveling each of 'numSamples'
         :param numSamples:  Number of samples to do forward computation for this batch
         """
+        print "Input mat shape: ", inputMat.shape.eval()
+        
         hiddenInit = T.unbroadcast(T.alloc(np.cast[theano.config.floatX](1.), inputMat.shape[1], self.dimHidden),0)
         candidateValsInit = T.unbroadcast(T.alloc(np.cast[theano.config.floatX](1.), inputMat.shape[1], self.dimHidden), 0)
 
@@ -144,6 +146,9 @@ class HiddenLayer(object):
         Takes the final output of the forward run of an LSTM layer and projects
          to a vector of dim equal to number of categories we are classifying over.
         """
+        print "Final Hidden: ", self.finalHiddenVal.eval()
+        print "Final W cat: ", self.W_cat.eval()
+        print "Final b cat: ", self.b_cat.eval()
         catOutput = T.dot(self.finalHiddenVal, self.W_cat) + self.b_cat
         return catOutput
 
@@ -163,6 +168,8 @@ class HiddenLayer(object):
         :param yPred: Output from LSTM with softmax applied
         :return: Loss for given predictions and targets
         """
+        print "Y pred: ", yPred.eval()
+        print "Y target: ", yTarget.eval()
         return T.nnet.categorical_crossentropy(yPred, yTarget).mean()
 
 
@@ -181,7 +188,8 @@ class HiddenLayer(object):
         Compute end-to-end cost function for a collection of input data.
         :return:
         """
-        catOutput = self.forwardRun(x, numTimesteps, 100) # Last parameter is num Samples -- may want to remove that
+        modelOutput = self.forwardRun(x, numTimesteps, 100) # Last parameter is num Samples -- may want to remove that
+        catOutput = self._projectToCategories()
         softmaxOut = self._getPredictions(catOutput)
         cost = self._computeCrossEntropyCost(softmaxOut, yTarget)
 
