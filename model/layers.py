@@ -32,30 +32,35 @@ class HiddenLayer(object):
 
         # Parameters for forget gate
         self.b_f= theano.shared(np.random.randn(1, dimHiddenState), name="biasForget_"+layerName, broadcastable=(True, False))
-        self.W_f= theano.shared(np.random.randn(dimHiddenState, (dimInput
-                                                                + dimHiddenState)),
+        self.W_f= theano.shared(np.random.randn(dimHiddenState, dimInput),
                                       name="weightsForget_"+layerName)
+        self.U_f = theano.shared(np.random.randn(dimHiddenState, dimHiddenState),
+                                 name="weightsHiddenForget_"+layerName)
 
         # Parameters for input gate
         self.b_i= theano.shared(np.random.randn(1, dimHiddenState), name="biasInput_"+layerName, broadcastable=(True, False))
-        self.W_i= theano.shared(np.random.randn(dimHiddenState, (dimInput
-                                                                + dimHiddenState)),
+        self.W_i= theano.shared(np.random.randn(dimHiddenState, dimInput),
                                      name="weightsInput_"+layerName)
+        self.U_i = theano.shared(np.random.randn(dimHiddenState, dimHiddenState),
+                                 name="weightsHiddenInput_"+layerName)
+
 
         # Parameters for candidate values
         self.b_c= theano.shared(np.random.randn(1, dimHiddenState),
                                       name="biasCandidate_"+layerName, broadcastable=(True, False))
-        self.W_c= theano.shared(np.random.randn(dimHiddenState, (dimInput
-                                                                + dimHiddenState)),
+        self.W_c= theano.shared(np.random.randn(dimHiddenState, dimInput),
                                          name="weightsCandidate_"+layerName)
+        self.U_c = theano.shared(np.random.randn(dimHiddenState, dimHiddenState),
+                                 name="weightsHiddenCandidate_"+layerName)
 
         # Parameters for final output vector transform (for final
         # classification)
         self.b_o= theano.shared(np.random.randn(1, dimHiddenState),
                                             name="biasOutputTransform_"+layerName, broadcastable=(True, False))
-        self.W_o= theano.shared(np.random.randn(dimHiddenState, (dimInput
-                                                                + dimHiddenState)),
+        self.W_o= theano.shared(np.random.randn(dimHiddenState, dimInput),
                                                name="weightsOutputTransform_"+layerName)
+        self.U_o = theano.shared(np.random.randn(dimHiddenState, dimHiddenState),
+                                 name="weightsHiddenTransform_"+layerName)
 
 
         # Parameters for linear projection from output of forward pass to a
@@ -65,6 +70,7 @@ class HiddenLayer(object):
                                             name="biasCatTransform"+layerName, broadcastable=(True, False))
         self.W_cat= theano.shared(np.random.randn(dimHiddenState, self.numLabels),
                                                name="weightsCatTransform"+layerName)
+
 
         self.finalCandidateVal = None # Stores final cell state from scan in forwardPass
         self.finalHiddenVal = None  # Stores final hidden state from scan in forwardPass
@@ -95,26 +101,33 @@ class HiddenLayer(object):
         :param prevCellState: Vec of cell state at previous time step.
         """
         #print "prev cell: " #prevCellState.eval()
-        combinedState = T.concatenate([prevHiddenState, input], axis=1) # Should be (numSamples, dimHidden + dimInput)
-        #print "Combined: "# combinedState.eval()
-        forgetGate = T.nnet.sigmoid(T.dot(combinedState, self.W_f.T)
-                                    + self.b_f) # Should be (numSamples, dimHidden)
-        #print "Forget: " #, forgetGate.eval()
-        inputGate = T.nnet.sigmoid(T.dot(combinedState, self.W_i.T) +
-                                    self.b_i) # Ditto
-        #print "Input: " #, inputGate.eval()
-        candidateVals = T.tanh(T.dot(combinedState, self.W_c.T) +
-                                self.b_c) # Ditto
-        #print "Candidate Vals: " #, candidateVals.eval()
-        candidateVals = forgetGate * prevCellState + inputGate * candidateVals # Ditto
-        #print "Transformed Candidate Vals: " #, candidateVals.eval()
-        output = T.nnet.sigmoid(T.dot(combinedState, self.W_o.T) +
-                                 self.b_o) # Ditto
-        #print "Output: " #, output.eval()
-        hiddenState = output * T.tanh(candidateVals) # Ditto
-        #print "Hidden State: " #, hiddenState.eval()
+        # print(type(prevHiddenState))
+        # print(type(input))
+        # print "Shape prev hidden: ", prevHiddenState.shape
+        # print "Shape input: ", input.shape
 
-        #print "Hidden State After Type: ", type(hiddenState)
+        #combinedState = T.concatenate([prevHiddenState, input], axis=1) # Should be (numSamples, dimHidden + dimInput)
+        #print "Combined: " combinedState.eval()
+        #print "U_f: ", self.U_f.eval()
+        #print "prevHIdden: ", prevHiddenState.eval()
+        #print "precCell: ", prevCellState.eval()
+        forgetGate = T.nnet.sigmoid(T.dot(input, self.W_f.T) + T.dot(prevHiddenState, self.U_f.T)
+                                    + self.b_f) # Should be (numSamples, dimHidden)
+        #print "Forget: " , forgetGate.eval()
+        inputGate = T.nnet.sigmoid(T.dot(input, self.W_i.T) + T.dot(prevHiddenState, self.U_i.T)
+                                    + self.b_i) # Ditto
+        #print "Input: " , inputGate.eval()
+        candidateVals = T.tanh(T.dot(input, self.W_c.T) + T.dot(prevHiddenState, self.U_c.T)
+                                + self.b_c) # Ditto
+        #print "Candidate Vals: " , candidateVals.eval()
+        candidateVals = forgetGate * prevCellState + inputGate * candidateVals # Ditto
+        #print "Transformed Candidate Vals: " , candidateVals.eval()
+        output = T.nnet.sigmoid(T.dot(input, self.W_o.T) + T.dot(prevHiddenState, self.U_o.T)
+                                 + self.b_o) # Ditto
+        #print "Output: " , output.eval()
+        hiddenState = output * T.tanh(candidateVals) # Ditto
+        #print "Hidden State: " , hiddenState.eval()
+
         return hiddenState, candidateVals
 
     def forwardRun(self, inputMat, timeSteps, numSamples):
@@ -125,19 +138,21 @@ class HiddenLayer(object):
         :param timeSteps: Number of timesteps to use for unraveling each of 'numSamples'
         :param numSamples:  Number of samples to do forward computation for this batch
         """
-        print "Input mat shape: ", inputMat.shape.eval()
-        
+        #print "Input mat shape: ", inputMat.shape.eval()
+
         hiddenInit = T.unbroadcast(T.alloc(np.cast[theano.config.floatX](1.), inputMat.shape[1], self.dimHidden),0)
         candidateValsInit = T.unbroadcast(T.alloc(np.cast[theano.config.floatX](1.), inputMat.shape[1], self.dimHidden), 0)
 
+        #print hiddenInit.eval()
+        #print candidateValsInit.eval()
         modelOut, updates = theano.scan(self._step,
                                 sequences=[inputMat],
                                 outputs_info=[hiddenInit, candidateValsInit], # Running a batch of samples at a time
                                 name="layers",
                                 n_steps=timeSteps)
 
-        self.finalCandidateVal = modelOut[-1][1]
-        self.finalHiddenVal = modelOut[-1][0]
+        self.finalCandidateVal = modelOut[0][-1]
+        self.finalHiddenVal = modelOut[1][-1]
 
         return modelOut, updates
 
@@ -146,9 +161,9 @@ class HiddenLayer(object):
         Takes the final output of the forward run of an LSTM layer and projects
          to a vector of dim equal to number of categories we are classifying over.
         """
-        print "Final Hidden: ", self.finalHiddenVal.eval()
-        print "Final W cat: ", self.W_cat.eval()
-        print "Final b cat: ", self.b_cat.eval()
+        #print "Final Hidden: ", self.finalHiddenVal.eval()
+        #print "Final W cat: ", self.W_cat.eval()
+        #print "Final b cat: ", self.b_cat.eval()
         catOutput = T.dot(self.finalHiddenVal, self.W_cat) + self.b_cat
         return catOutput
 
@@ -168,8 +183,8 @@ class HiddenLayer(object):
         :param yPred: Output from LSTM with softmax applied
         :return: Loss for given predictions and targets
         """
-        print "Y pred: ", yPred.eval()
-        print "Y target: ", yTarget.eval()
+        #print "Y pred: ", yPred.eval()
+        #print "Y target: ", yTarget.eval()
         return T.nnet.categorical_crossentropy(yPred, yTarget).mean()
 
 
@@ -188,7 +203,7 @@ class HiddenLayer(object):
         Compute end-to-end cost function for a collection of input data.
         :return:
         """
-        modelOutput = self.forwardRun(x, numTimesteps, 100) # Last parameter is num Samples -- may want to remove that
+        _ = self.forwardRun(x, numTimesteps, 100) # Last parameter is num Samples -- may want to remove that
         catOutput = self._projectToCategories()
         softmaxOut = self._getPredictions(catOutput)
         cost = self._computeCrossEntropyCost(softmaxOut, yTarget)
@@ -208,4 +223,3 @@ class HiddenLayer(object):
 
 
 
-    # TODO: convert all labels to (num_samples, 3) matrix with 1 in target category column

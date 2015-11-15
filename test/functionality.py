@@ -69,7 +69,9 @@ def testHiddenLayerStep():
 def testHiddenLayerScan():
     hLayer = HiddenLayer(2, 2, "testHidden")
     inputMat = T.as_tensor_variable(np.random.randn(2,1,2)) #(numTimeSteps, numSamples, dimHidden)
-    hLayer.forwardRun(inputMat, 2, 100)
+    hiddenState, candidateVals = hLayer.forwardRun(inputMat, 2, 100)
+    print "Hidden: ", hiddenState[0].eval()
+    print "HIdden: ", hiddenState[1].eval()
 
 
 def testCatProjection():
@@ -85,16 +87,16 @@ def testCatProjection():
 
 def testGetPrediction():
     hLayer = HiddenLayer(2, 2, "testHidden")
-    inputMat = T.as_tensor_variable(np.random.randn(2,1,2)) #(numTimeSteps, numSamples, dimHidden)
-    hLayer.forwardRun(inputMat, 2, 100)
+    inputMat = T.as_tensor_variable(np.random.randn(1,1,2)) #(numTimeSteps, numSamples, dimHidden)
+    hLayer.forwardRun(inputMat, 1, 100)
     catOutput = hLayer._projectToCategories()
 
     print "Cat Out: ", catOutput.eval()
     softmaxOut = hLayer._getPredictions(catOutput)
     print "Softmax out: ", softmaxOut.eval()
 
-    cat2Output = T.alloc(np.array([[3,4,1],[2,3,4]], dtype=np.float64), 2, 3)
-    print "Cat 2 out: ", hLayer._getPredictions(cat2Output).eval()
+    # cat2Output = T.alloc(np.array([[3,4,1],[2,3,4]], dtype=np.float64), 2, 3)
+    # print "Cat 2 out: ", hLayer._getPredictions(cat2Output).eval()
 
 
 def testCrossEntropyLoss():
@@ -114,18 +116,53 @@ def testCrossEntropyLoss():
 
 def testCostFuncPipeline():
     hLayer = HiddenLayer(dimInput=2, dimHiddenState=2, layerName="testHidden")
-    yTarget = T.as_tensor_variable(np.array([[0., 1., 0.]], dtype=np.float64))
-    x = T.as_tensor_variable(np.array([[[0.5, 0.6]]], dtype=np.float64))
+    #yTarget = T.as_tensor_variable(np.array([[0., 1., 0.]], dtype=np.float64))
+    #x = T.as_tensor_variable(np.array([[[0.5, 0.6]]], dtype=np.float64))
 
-    x = T.dmatrix("testX")
+    x = T.dtensor3("testX")
     yTarget = T.dmatrix("testyTarget")
+
+    xNP = np.array([[[0.5, 0.6]], [[0.3, 0.8]]], dtype = np.float64)
+    yTargetNP = np.array([[0., 1., 0.]], dtype=np.float64)
+    costFunc = hLayer._costFunc(x, yTarget, numTimesteps=2)
+    print "Cost: ", costFunc(xNP, yTargetNP)
 
     xNP = np.array([[[0.5, 0.6]]], dtype = np.float64)
     yTargetNP = np.array([[0., 1., 0.]], dtype=np.float64)
-    # TODO: fix dimension mismatch bug-- curr shape: (1,2)
     costFunc = hLayer._costFunc(x, yTarget, numTimesteps=1)
     print "Cost: ", costFunc(xNP, yTargetNP)
 
+    xNP = np.array([[[0.5, 0.6]], [[0.3, 0.8]]], dtype = np.float64)
+    yTargetNP = np.array([[1., 1., 0.]], dtype=np.float64)
+    costFunc = hLayer._costFunc(x, yTarget, numTimesteps=2)
+    print "Cost: ", costFunc(xNP, yTargetNP)
+
+
+def testFix():
+    xNP = T.as_tensor_variable(np.array([[[0.5, 0.6]], [[0.3, 0.8]]], dtype = np.float64))
+    yTargetNP = T.as_tensor_variable(np.array([[0., 1., 0.]], dtype=np.float64))
+
+    hLayer = HiddenLayer(2, 2, "testHidden")
+    #inputMat = T.as_tensor_variable(np.random.randn(1,1,2)) #(numTimeSteps, numSamples, dimHidden)
+    hLayer.forwardRun(xNP, 2, 100)
+    catOutput = hLayer._projectToCategories()
+
+    print "Cat Out: ", catOutput.eval()
+    softmaxOut = hLayer._getPredictions(catOutput)
+    print "Softmax out: ", softmaxOut.eval()
+    print "Cross entropy: ", hLayer._computeCrossEntropyCost(softmaxOut, yTargetNP).eval()
+
+def testFix2():
+    xNP = T.as_tensor_variable(np.array([[[0.5, 0.6]], [[0.3, 0.8]]], dtype=np.float64))
+    yTargetNP = T.as_tensor_variable(np.array([[0., 1., 0.]], dtype=np.float64))
+
+    x = T.dtensor3("testX") # 3d tensor as input
+    yTarget = T.dmatrix("testyTarget")
+    hLayer = HiddenLayer(2, 2, "testHidden")
+    modelOut, updates = hLayer.forwardRun(x, 3, 100)
+    f = theano.function([x], modelOut, name='LSTM_cost_function')
+
+    print "Cost: ", f(np.array([[[0.5, 0.6]], [[0.3, 0.8]], [[0.2, 0.1]]]))
 
 
 if __name__ == "__main__":
@@ -140,3 +177,5 @@ if __name__ == "__main__":
   #testGetPrediction()
   #testCrossEntropyLoss()
   testCostFuncPipeline()
+  #testFix()
+  #testFix2()
