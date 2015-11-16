@@ -78,7 +78,7 @@ def testCatProjection():
     hLayer = HiddenLayer(2, 2, "testHidden")
     inputMat = T.as_tensor_variable(np.random.randn(2,1,2)) #(numTimeSteps, numSamples, dimHidden)
     hLayer.forwardRun(inputMat, 2, 100)
-    catOutput = hLayer._projectToCategories()
+    catOutput = hLayer.projectToCategories()
 
     print "Final Hidden Val: ", hLayer.finalHiddenVal.eval()
     print "W cat: ", hLayer.W_cat.eval()
@@ -89,10 +89,10 @@ def testGetPrediction():
     hLayer = HiddenLayer(2, 2, "testHidden")
     inputMat = T.as_tensor_variable(np.random.randn(1,1,2)) #(numTimeSteps, numSamples, dimHidden)
     hLayer.forwardRun(inputMat, 1, 100)
-    catOutput = hLayer._projectToCategories()
+    catOutput = hLayer.projectToCategories()
 
     print "Cat Out: ", catOutput.eval()
-    softmaxOut = hLayer._getPredictions(catOutput)
+    softmaxOut = hLayer.getPredictions(catOutput)
     print "Softmax out: ", softmaxOut.eval()
 
     # cat2Output = T.alloc(np.array([[3,4,1],[2,3,4]], dtype=np.float64), 2, 3)
@@ -103,66 +103,73 @@ def testCrossEntropyLoss():
     hLayer = HiddenLayer(2, 2, "testHidden")
     yPred = T.as_tensor_variable(np.array([0.3, 0.5, 0.2], dtype=np.float64))
     yTarget = T.as_tensor_variable(np.array([0., 1., 0.], dtype=np.float64))
-    loss = hLayer._computeCrossEntropyCost(yPred, yTarget)
+    loss = hLayer.computeCrossEntropyCost(yPred, yTarget)
 
     print "Cross Entropy loss: ", loss.eval()
 
     yPred2 = T.as_tensor_variable(np.array([[0.3, 0.5, 0.2], [0.4, 0.3, 0.3]], dtype=np.float64))
     yTarget2 = T.as_tensor_variable(np.array([[0., 1., 0.], [1, 0, 0]], dtype=np.float64))
-    loss2 = hLayer._computeCrossEntropyCost(yPred2, yTarget2)
+    loss2 = hLayer.computeCrossEntropyCost(yPred2, yTarget2)
 
     print "Second cross entropy loss: ", loss2.eval()
 
 
 def testCostFuncPipeline():
     hLayer = HiddenLayer(dimInput=2, dimHiddenState=2, layerName="testHidden")
-    #yTarget = T.as_tensor_variable(np.array([[0., 1., 0.]], dtype=np.float64))
-    #x = T.as_tensor_variable(np.array([[[0.5, 0.6]]], dtype=np.float64))
 
     x = T.dtensor3("testX")
     yTarget = T.dmatrix("testyTarget")
 
     xNP = np.array([[[0.5, 0.6]], [[0.3, 0.8]]], dtype = np.float64)
     yTargetNP = np.array([[0., 1., 0.]], dtype=np.float64)
-    costFunc = hLayer._costFunc(x, yTarget, numTimesteps=2)
+    cost, costFunc = hLayer.costFunc(x, yTarget, numTimesteps=2)
     print "Cost: ", costFunc(xNP, yTargetNP)
 
     xNP = np.array([[[0.5, 0.6]]], dtype = np.float64)
     yTargetNP = np.array([[0., 1., 0.]], dtype=np.float64)
-    costFunc = hLayer._costFunc(x, yTarget, numTimesteps=1)
+    costFunc = hLayer.costFunc(x, yTarget, numTimesteps=1)
     print "Cost: ", costFunc(xNP, yTargetNP)
 
     xNP = np.array([[[0.5, 0.6]], [[0.3, 0.8]]], dtype = np.float64)
     yTargetNP = np.array([[1., 1., 0.]], dtype=np.float64)
-    costFunc = hLayer._costFunc(x, yTarget, numTimesteps=2)
+    cost, costFunc = hLayer.costFunc(x, yTarget, numTimesteps=2)
     print "Cost: ", costFunc(xNP, yTargetNP)
 
 
-def testFix():
-    xNP = T.as_tensor_variable(np.array([[[0.5, 0.6]], [[0.3, 0.8]]], dtype = np.float64))
-    yTargetNP = T.as_tensor_variable(np.array([[0., 1., 0.]], dtype=np.float64))
-
-    hLayer = HiddenLayer(2, 2, "testHidden")
-    #inputMat = T.as_tensor_variable(np.random.randn(1,1,2)) #(numTimeSteps, numSamples, dimHidden)
-    hLayer.forwardRun(xNP, 2, 100)
-    catOutput = hLayer._projectToCategories()
-
-    print "Cat Out: ", catOutput.eval()
-    softmaxOut = hLayer._getPredictions(catOutput)
-    print "Softmax out: ", softmaxOut.eval()
-    print "Cross entropy: ", hLayer._computeCrossEntropyCost(softmaxOut, yTargetNP).eval()
-
-def testFix2():
-    xNP = T.as_tensor_variable(np.array([[[0.5, 0.6]], [[0.3, 0.8]]], dtype=np.float64))
-    yTargetNP = T.as_tensor_variable(np.array([[0., 1., 0.]], dtype=np.float64))
-
-    x = T.dtensor3("testX") # 3d tensor as input
+def testGradComputation():
+    hLayer = HiddenLayer(dimInput=2, dimHiddenState=2, layerName="testHidden")
+    x = T.dtensor3("testX")
     yTarget = T.dmatrix("testyTarget")
-    hLayer = HiddenLayer(2, 2, "testHidden")
-    modelOut, updates = hLayer.forwardRun(x, 3, 100)
-    f = theano.function([x], modelOut, name='LSTM_cost_function')
 
-    print "Cost: ", f(np.array([[[0.5, 0.6]], [[0.3, 0.8]], [[0.2, 0.1]]]))
+    xNP = np.array([[[0.5, 0.6]], [[0.3, 0.8]]], dtype = np.float64)
+    yTargetNP = np.array([[0., 1., 0.]], dtype=np.float64)
+    cost, costFunc = hLayer.costFunc(x, yTarget, numTimesteps=2)
+    grads, gradFunc = hLayer.computeGrads(x, yTarget, cost)
+    print "Grads: ", gradFunc(xNP, yTargetNP)
+
+def testSGD():
+    hLayer = HiddenLayer(dimInput=2, dimHiddenState=2, layerName="testHidden")
+    x = T.dtensor3("testX")
+    yTarget = T.dmatrix("testyTarget")
+
+    xNP = np.array([[[0.5, 0.6]], [[0.3, 0.8]]], dtype = np.float64)
+    yTargetNP = np.array([[0., 1., 0.]], dtype=np.float64)
+    cost, costFunc = hLayer.costFunc(x, yTarget, numTimesteps=2)
+    grads, gradFunc = hLayer.computeGrads(x, yTarget, cost)
+    gradsVals = gradFunc(xNP, yTargetNP)
+    print "Grads: ", gradsVals
+
+    print "Former param values: "
+    for name, param in hLayer.params.iteritems():
+        print name, ": ", param.eval()
+
+    learnRate = T.scalar(name="learnRate")
+    sgdFunc = hLayer.sgd(gradsVals, learnRate)
+    sgdFunc(0.4)
+    print "-"*100
+    print "Updated param values: "
+    for name, param in hLayer.params.iteritems():
+        print name, ": ", param.eval()
 
 
 if __name__ == "__main__":
@@ -176,6 +183,6 @@ if __name__ == "__main__":
   #testCatProjection()
   #testGetPrediction()
   #testCrossEntropyLoss()
-  testCostFuncPipeline()
-  #testFix()
-  #testFix2()
+  #testCostFuncPipeline()
+  #testGradComputation()
+    testSGD()

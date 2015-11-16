@@ -31,67 +31,80 @@ class HiddenLayer(object):
         # TODO: what to use for initializing parameters (random?)
 
         # Parameters for forget gate
-        self.b_f= theano.shared(np.random.randn(1, dimHiddenState), name="biasForget_"+layerName, broadcastable=(True, False))
-        self.W_f= theano.shared(np.random.randn(dimHiddenState, dimInput),
-                                      name="weightsForget_"+layerName)
+        self.b_f = theano.shared(np.random.randn(1, dimHiddenState), name="biasF_"+layerName, broadcastable=(True, False))
+        self.W_f = theano.shared(np.random.randn(dimHiddenState, dimInput),
+                                      name="weightsXf_"+layerName)
         self.U_f = theano.shared(np.random.randn(dimHiddenState, dimHiddenState),
-                                 name="weightsHiddenForget_"+layerName)
+                                 name="weightsHf_"+layerName)
 
         # Parameters for input gate
-        self.b_i= theano.shared(np.random.randn(1, dimHiddenState), name="biasInput_"+layerName, broadcastable=(True, False))
-        self.W_i= theano.shared(np.random.randn(dimHiddenState, dimInput),
-                                     name="weightsInput_"+layerName)
+        self.b_i = theano.shared(np.random.randn(1, dimHiddenState), name="biasI_"+layerName, broadcastable=(True, False))
+        self.W_i = theano.shared(np.random.randn(dimHiddenState, dimInput),
+                                     name="weightsXi_"+layerName)
         self.U_i = theano.shared(np.random.randn(dimHiddenState, dimHiddenState),
-                                 name="weightsHiddenInput_"+layerName)
+                                 name="weightsHi_"+layerName)
 
 
         # Parameters for candidate values
-        self.b_c= theano.shared(np.random.randn(1, dimHiddenState),
-                                      name="biasCandidate_"+layerName, broadcastable=(True, False))
-        self.W_c= theano.shared(np.random.randn(dimHiddenState, dimInput),
-                                         name="weightsCandidate_"+layerName)
+        self.b_c = theano.shared(np.random.randn(1, dimHiddenState),
+                                      name="biasC_"+layerName, broadcastable=(True, False))
+        self.W_c = theano.shared(np.random.randn(dimHiddenState, dimInput),
+                                         name="weightsXc_"+layerName)
         self.U_c = theano.shared(np.random.randn(dimHiddenState, dimHiddenState),
-                                 name="weightsHiddenCandidate_"+layerName)
+                                 name="weightsHc_"+layerName)
 
         # Parameters for final output vector transform (for final
         # classification)
-        self.b_o= theano.shared(np.random.randn(1, dimHiddenState),
-                                            name="biasOutputTransform_"+layerName, broadcastable=(True, False))
-        self.W_o= theano.shared(np.random.randn(dimHiddenState, dimInput),
-                                               name="weightsOutputTransform_"+layerName)
+        self.b_o = theano.shared(np.random.randn(1, dimHiddenState),
+                                            name="biasO_"+layerName, broadcastable=(True, False))
+        self.W_o = theano.shared(np.random.randn(dimHiddenState, dimInput),
+                                               name="weightsXo_"+layerName)
         self.U_o = theano.shared(np.random.randn(dimHiddenState, dimHiddenState),
-                                 name="weightsHiddenTransform_"+layerName)
+                                 name="weightsHo_"+layerName)
 
 
         # Parameters for linear projection from output of forward pass to a
         # vector with dimension equal to number of categories being classified
         # via one more softmax
-        self.b_cat= theano.shared(np.random.randn(1, self.numLabels),
-                                            name="biasCatTransform"+layerName, broadcastable=(True, False))
-        self.W_cat= theano.shared(np.random.randn(dimHiddenState, self.numLabels),
-                                               name="weightsCatTransform"+layerName)
+        self.b_cat = theano.shared(np.random.randn(1, self.numLabels),
+                                            name="biasCat_"+layerName, broadcastable=(True, False))
+        self.W_cat = theano.shared(np.random.randn(dimHiddenState, self.numLabels),
+                                               name="weightsCat_"+layerName)
 
 
         self.finalCandidateVal = None # Stores final cell state from scan in forwardPass
         self.finalHiddenVal = None  # Stores final hidden state from scan in forwardPass
 
         # Add shared vars to params dict
-        self.params["biasInput_"+layerName] = self.b_i
-        self.params["weightsInput_"+layerName] = self.W_i
+        self.params["biasI_"+layerName] = self.b_i
+        self.params["weightsXi_"+layerName] = self.W_i
+        self.params["weightsHi_"+layerName] = self.U_i
 
-        self.params["biasForget_"+layerName] = self.b_f
-        self.params["weightsForget_"+layerName] = self.W_f
+        self.params["biasF_"+layerName] = self.b_f
+        self.params["weightsXf_"+layerName] = self.W_f
+        self.params["weightsHf_"+layerName] = self.U_f
 
-        self.params["biasCandidate_"+layerName] = self.b_c
-        self.params["weightsCandidate_"+layerName] = self.W_c
+        self.params["biasC_"+layerName] = self.b_c
+        self.params["weightsXc_"+layerName] = self.W_c
+        self.params["weightsHc_"+layerName] = self.U_c
 
-        self.params["biasOutputTransform_"+layerName] = self.b_o
-        self.params["weightsOutputTransform_"+layerName] = self.W_o
+        self.params["biasO_"+layerName] = self.b_o
+        self.params["weightsXo_"+layerName] = self.W_o
+        self.params["weightsHo_"+layerName] = self.U_o
 
-        self.params["biasCatTransform_"+layerName] = self.b_cat
-        self.params["weightsCatTransform"+layerName] = self.W_cat
+        self.params["biasCat_"+layerName] = self.b_cat
+        self.params["weightsCat_"+layerName] = self.W_cat
 
 
+    def updateParams(self, newParams):
+        """
+        Append to the params dict for current layer with new set of params
+        :param newParams:
+        :return:
+        """
+        self.params.update(newParams)
+
+    
     def _step(self, input, prevHiddenState, prevCellState):
         """
         Function used for executing computation of one
@@ -156,7 +169,7 @@ class HiddenLayer(object):
 
         return modelOut, updates
 
-    def _projectToCategories(self):
+    def projectToCategories(self):
         """
         Takes the final output of the forward run of an LSTM layer and projects
          to a vector of dim equal to number of categories we are classifying over.
@@ -167,7 +180,7 @@ class HiddenLayer(object):
         catOutput = T.dot(self.finalHiddenVal, self.W_cat) + self.b_cat
         return catOutput
 
-    def _getPredictions(self, catOutput):
+    def getPredictions(self, catOutput):
         """
         Apply softmax to final vector of outputs
         :return:
@@ -176,7 +189,7 @@ class HiddenLayer(object):
         return softmaxOut
 
 
-    def _computeCrossEntropyCost(self, yPred, yTarget):
+    def computeCrossEntropyCost(self, yPred, yTarget):
         """
         Given predictions returned through softmax projection, compute
         cross entropy cost
@@ -188,7 +201,7 @@ class HiddenLayer(object):
         return T.nnet.categorical_crossentropy(yPred, yTarget).mean()
 
 
-    def _computeAccuracy(self, yPred, yTarget):
+    def computeAccuracy(self, yPred, yTarget):
         """
         Computes accuracy for target and predicted values
         :param yPred:
@@ -198,28 +211,42 @@ class HiddenLayer(object):
         return T.mean(T.eq(T.argmax(yPred, axis=-1), T.argmax(yTarget, axis=-1)))
 
 
-    def _costFunc(self, x, yTarget, numTimesteps):
+    def costFunc(self, x, yTarget, numTimesteps):
         """
         Compute end-to-end cost function for a collection of input data.
-        :return:
+        :return: Symbolic expression for cost function as well as theano function
+                 for computing cost expression.
         """
         _ = self.forwardRun(x, numTimesteps, 100) # Last parameter is num Samples -- may want to remove that
         catOutput = self._projectToCategories()
         softmaxOut = self._getPredictions(catOutput)
         cost = self._computeCrossEntropyCost(softmaxOut, yTarget)
 
-        return theano.function([x, yTarget], cost, name='LSTM_cost_function')
+        return cost, theano.function([x, yTarget], cost, name='LSTM_cost_function')
 
 
-    def _computeGrads(self, x, yTarget, costFunc):
+    def computeGrads(self, x, yTarget, cost):
         """
         Computes gradients for cost function with respect to all parameters.
         :param costFunc:
         :return:
         """
-        grads = T.grad(costFunc, wrt=self.params.values())
-        costGrad = theano.function([x, yTarget], grads, name='costGrad')
-        return costGrad
+        grads = T.grad(cost, wrt=self.params.values())
+        costGrad = theano.function([x, yTarget], grads, name='costGradients')
+        return grads, costGrad
+
+
+    def sgd(self, grads, learnRate):
+        """
+        Apply SGD updates to parameters of model.
+        :return: Function that can be used to compute sgd updates of parameters
+        """
+        paramUpdate = [(param, param - learnRate*grad) for param, grad in
+                       zip(self.params.values(), grads)]
+
+        return theano.function([learnRate], [], updates=paramUpdate, name="sgdParamUpdate")
+
+
 
 
 
