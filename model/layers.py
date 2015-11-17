@@ -20,15 +20,20 @@ class HiddenLayer(object):
         """
         # Dictionary of model parameters.
         self.params = {}
-
+        self.layerName = layerName
         self.inputDim = dimInput
         self.dimHidden = dimHiddenState
 
-        self.numLabels = numCategories # Represents number of categories used for classification
+        # Represents number of categories used for classification
+        self.numLabels = numCategories
 
-        self.outputs = None
+        # Initialization values for hidden layer compute unit parameters
+        self.hiddenInit = None
+        self.candidateValInit = None
 
         # TODO: what to use for initializing parameters (random?)
+
+        # TODO: include parameters for projecting from input word vector dimensions to dimInput
 
         # Parameters for forget gate
         self.b_f = theano.shared(np.random.randn(1, dimHiddenState), name="biasF_"+layerName, broadcastable=(True, False))
@@ -104,7 +109,28 @@ class HiddenLayer(object):
         """
         self.params.update(newParams)
 
-    
+
+    def printParams(self):
+        """
+        Prints current parameters of model for debugging purposes.
+        """
+        print "Current parameter values for %s" %(self.layerName)
+        print "-" * 50
+        for pName, pValue in self.params.iteritems():
+            print pName, " : ", pValue.eval()
+
+        print "-" * 50
+
+    def setInitialLayerParams(self, hiddenInit, candidateValInit):
+        """
+        Sets the initialization hidden value and candidate value parameters
+        :param hiddenValInit:
+        :param candidateValInit:
+        """
+        self.hiddenInit = hiddenInit
+        self.candidateValInit = candidateValInit
+
+
     def _step(self, input, prevHiddenState, prevCellState):
         """
         Function used for executing computation of one
@@ -143,7 +169,7 @@ class HiddenLayer(object):
 
         return hiddenState, candidateVals
 
-    def forwardRun(self, inputMat, timeSteps, numSamples):
+    def forwardRun(self, inputMat, timeSteps):
         """
         Executes forward computation for designated number of time steps.
         Returns output vectors for all timesteps.
@@ -153,8 +179,13 @@ class HiddenLayer(object):
         """
         #print "Input mat shape: ", inputMat.shape.eval()
 
-        hiddenInit = T.unbroadcast(T.alloc(np.cast[theano.config.floatX](1.), inputMat.shape[1], self.dimHidden),0)
-        candidateValsInit = T.unbroadcast(T.alloc(np.cast[theano.config.floatX](1.), inputMat.shape[1], self.dimHidden), 0)
+        # Outputs of premise layer passed as input to hypothesis layer
+        if self.hiddenInit is None and self.candidateValInit is None:
+            hiddenInit = T.unbroadcast(T.alloc(np.cast[theano.config.floatX](1.), inputMat.shape[1], self.dimHidden),0)
+            candidateValsInit = T.unbroadcast(T.alloc(np.cast[theano.config.floatX](1.), inputMat.shape[1], self.dimHidden), 0)
+        else:
+            hiddenInit = self.hiddenInit
+            candidateValsInit = self.candidateValInit
 
         #print hiddenInit.eval()
         #print candidateValsInit.eval()
@@ -211,18 +242,18 @@ class HiddenLayer(object):
         return T.mean(T.eq(T.argmax(yPred, axis=-1), T.argmax(yTarget, axis=-1)))
 
 
-    def costFunc(self, x, yTarget, numTimesteps):
+    def costFunc(self, x, yTarget, numTimesteps=1):
         """
         Compute end-to-end cost function for a collection of input data.
         :return: Symbolic expression for cost function as well as theano function
                  for computing cost expression.
         """
-        _ = self.forwardRun(x, numTimesteps, 100) # Last parameter is num Samples -- may want to remove that
-        catOutput = self._projectToCategories()
-        softmaxOut = self._getPredictions(catOutput)
-        cost = self._computeCrossEntropyCost(softmaxOut, yTarget)
-
-        return cost, theano.function([x, yTarget], cost, name='LSTM_cost_function')
+        _ = self.forwardRun(x, numTimesteps) # Last parameter is num Samples -- may want to remove that
+        catOutput = self.projectToCategories()
+        softmaxOut = self.getPredictions(catOutput)
+        cost = self.computeCrossEntropyCost(softmaxOut, yTarget)
+        theano.printing.pydotprint(cost, outfile="costGraph")
+        return cost #, theano.function([x, yTarget], cost, name='LSTM_cost_function')
 
 
     def computeGrads(self, x, yTarget, cost):
@@ -231,9 +262,11 @@ class HiddenLayer(object):
         :param costFunc:
         :return:
         """
+        theano.pp(cost)
         grads = T.grad(cost, wrt=self.params.values())
-        costGrad = theano.function([x, yTarget], grads, name='costGradients')
-        return grads, costGrad
+        #theano.pp(grads)
+        #costGrad = theano.function([x, yTarget], grads, name='costGradients')
+        return grads #, costGrad
 
 
     def sgd(self, grads, learnRate):

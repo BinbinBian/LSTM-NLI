@@ -8,6 +8,7 @@ import theano.tensor as T
 
 from model.embeddings import EmbeddingTable
 from model.layers import HiddenLayer
+from model.network import Network
 from util.utils import convertLabelsToMat
 
 dataPath = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/"
@@ -147,6 +148,7 @@ def testGradComputation():
     grads, gradFunc = hLayer.computeGrads(x, yTarget, cost)
     print "Grads: ", gradFunc(xNP, yTargetNP)
 
+
 def testSGD():
     hLayer = HiddenLayer(dimInput=2, dimHiddenState=2, layerName="testHidden")
     x = T.dtensor3("testX")
@@ -172,6 +174,22 @@ def testSGD():
         print name, ": ", param.eval()
 
 
+def testNetworkSetup():
+    network = Network()
+    network.buildModel()
+    network.hiddenLayerHypothesis.params["biasO_premiseLayer"] += T.as_tensor_variable(np.array([1, 2]))
+    network.hiddenLayerPremise.printParams()
+    network.hiddenLayerHypothesis.printParams()
+
+
+def testParamsBackPropUpdate():
+    """
+    Test to ensure that the parameters of premise are updated after backprop.
+    """
+    network = Network()
+    network.buildModel()
+    network.trainFunc()
+
 if __name__ == "__main__":
   # testLabelsMat()
   # testEmbeddings()
@@ -185,4 +203,6 @@ if __name__ == "__main__":
   #testCrossEntropyLoss()
   #testCostFuncPipeline()
   #testGradComputation()
-    testSGD()
+   # testSGD()
+   #testNetworkSetup()
+   testParamsBackPropUpdate()
