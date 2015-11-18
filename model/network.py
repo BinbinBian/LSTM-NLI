@@ -30,49 +30,41 @@ class Network(object):
         self.dimHidden = dimHidden
         self.inputMat = None # To store matrix of data input
 
+        self.premiseLSTMName = "premiseLayer"
+        self.hypothesisLSTMName = "hypotheisLayer"
+
+
     def buildModel(self):
         """
         Handles building of model, including initializing necessary parameters, defining
         loss functions, etc.
         """
         self.hiddenLayerPremise = HiddenLayer(self.dimHidden, self.dimInput, "premiseLayer")
+        del self.hiddenLayerPremise.params["weightsCat_premiseLayer"] # Need to make sure not differentiating with respect to Wcat of premise
+        del self.hiddenLayerPremise.params["biasCat_premiseLayer"] # May want to find cleaner way to deal with this later
+
         self.hiddenLayerHypothesis = HiddenLayer(self.dimHidden, self.dimInput, "hypothesisLayer")
 
-        self.hiddenLayerHypothesis.updateParams(self.hiddenLayerPremise.params)
 
 
-    def trainFunc(self):
-        inputPremise = T.dtensor3("inputPremise")
-        inputHypothesis = T.dtensor3("inputHypothesis")
-        yTarget = T.dmatrix("yTarget")
 
-        # self.hiddenLayerHypothesis.printParams()
-        # del self.hiddenLayerHypothesis.params["weightsXo_hypothesisLayer"]
-        # del self.hiddenLayerHypothesis.params["weightsCat_premiseLayer"]
-        # del self.hiddenLayerHypothesis.params["biasO_hypothesisLayer"]
-
-        # self.hiddenLayerHypothesis.printParams()
-
+    def trainFunc(self, inputPremise, inputHypothesis, yTarget, learnRate):
+        """
+        Defines theano training function for layer, including forward runs and backpropagation.
+        Takes as input the necessary symbolic variables.
+        """
         self.hiddenLayerPremise.forwardRun(inputPremise, 1)
         premiseOutputHidden = self.hiddenLayerPremise.finalHiddenVal
         premiseOutputCandidate = self.hiddenLayerPremise.finalCandidateVal
 
-        #print "premise Output Hidden: ", premiseOutputHidden
-
         self.hiddenLayerHypothesis.setInitialLayerParams(premiseOutputHidden, premiseOutputCandidate)
-        self.hiddenLayerHypothesis.forwardRun(inputHypothesis, 1)
-        hypothesisOutput = self.hiddenLayerHypothesis.finalHiddenVal
-        cost = self.hiddenLayerHypothesis.costFunc(inputHypothesis, yTarget)
+        cost = self.hiddenLayerHypothesis.costFunc(inputHypothesis, yTarget, 1)
+
         grads = self.hiddenLayerHypothesis.computeGrads(inputHypothesis, yTarget, cost)
-        trainF = theano.function([inputPremise, inputHypothesis, yTarget], grads)
+        paramUpdates = self.hiddenLayerHypothesis.sgd(grads, learnRate)
+        trainF = theano.function([inputPremise, inputHypothesis, yTarget, learnRate], updates=paramUpdates, name='trainNet')
 
-
-        premiseSent = np.random.randn(1,1,2)
-        hypothesisSent = np.random.randn(1,1,2)
-        xNP = np.array([[[0.3, 0.04]]], dtype = np.float64)
-        yTargetVal = np.array([[0., 1., 0.]], dtype=np.float64)
-
-        print "Train out: ", trainF(premiseSent, hypothesisSent, yTargetVal)
+        return trainF
 
 
     def train(self, numEpochs=5, batchSize=1):
@@ -81,12 +73,25 @@ class Network(object):
         parameters.
         """
         #for epoch in xrange(numEpochs):
+        self.hiddenLayerHypothesis.appendParams(self.hiddenLayerPremise.params) # May have to do this every time
 
-        premiseSent = T.as_tensor_variable(np.random.randn(1,1,2))
-        hypothesisSent= T.as_tensor_variable(np.random.randn(1,1,2))
+        inputPremise = T.dtensor3("inputPremise")
+        inputHypothesis = T.dtensor3("inputHypothesis")
+        yTarget = T.dmatrix("yTarget")
+        learnRate = T.scalar(name="learnRate")
 
+        premiseSent = np.random.randn(1,1,2)
+        hypothesisSent = np.random.randn(1,1,2)
+        xNP = np.array([[[0.3, 0.04]]], dtype = np.float64)
+        yTargetVal = np.array([[0., 1., 0.]], dtype=np.float64)
+        learnRateVal = 0.5
 
+        trainNetFunc = self.trainFunc(inputPremise, inputHypothesis, yTarget, learnRate)
 
+        gradOut = trainNetFunc(premiseSent, hypothesisSent, yTargetVal, learnRateVal)
+        newPremiseGrads = self.hiddenLayerHypothesis.getPremiseGrads()
+        self.hiddenLayerPremise.updateParams(newPremiseGrads)
 
-
-
+        self.hiddenLayerHypothesis.printParams()
+        trainNetFunc(premiseSent, hypothesisSent, yTargetVal, learnRateVal)
+        self.hiddenLayerHypothesis.printParams()

@@ -188,7 +188,7 @@ def testParamsBackPropUpdate():
     """
     network = Network()
     network.buildModel()
-    network.trainFunc()
+    network.train()
 
 if __name__ == "__main__":
   # testLabelsMat()

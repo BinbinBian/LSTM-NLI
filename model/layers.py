@@ -101,13 +101,35 @@ class HiddenLayer(object):
         self.params["weightsCat_"+layerName] = self.W_cat
 
 
-    def updateParams(self, newParams):
+    def appendParams(self, newParams):
         """
-        Append to the params dict for current layer with new set of params
+        Append to the params dict for current layer with new set of params from previous layer
         :param newParams:
         :return:
         """
         self.params.update(newParams)
+
+    def getPremiseGrads(self):
+        """
+        Return a list of pairs of form (paramName, gradValue) to update premise layer
+        :return:
+        """
+        premiseGrads = []
+        for paramName, value in self.params.iteritems():
+            descrip, suffix = paramName.split("_")
+            if suffix == "premiseLayer":
+                premiseGrads.append((paramName, value))
+
+        return premiseGrads
+
+
+    def updateParams(self, paramUpdates):
+        """
+        Update layer params with new values of params
+        :param paramUpdates: New values of params
+        """
+        for paramName, newValue in paramUpdates:
+            self.params[paramName] = newValue
 
 
     def printParams(self):
@@ -120,6 +142,7 @@ class HiddenLayer(object):
             print pName, " : ", pValue.eval()
 
         print "-" * 50
+
 
     def setInitialLayerParams(self, hiddenInit, candidateValInit):
         """
@@ -139,35 +162,20 @@ class HiddenLayer(object):
         :param prevHiddenState: Vec of hidden state at previous time step.
         :param prevCellState: Vec of cell state at previous time step.
         """
-        #print "prev cell: " #prevCellState.eval()
-        # print(type(prevHiddenState))
-        # print(type(input))
-        # print "Shape prev hidden: ", prevHiddenState.shape
-        # print "Shape input: ", input.shape
 
-        #combinedState = T.concatenate([prevHiddenState, input], axis=1) # Should be (numSamples, dimHidden + dimInput)
-        #print "Combined: " combinedState.eval()
-        #print "U_f: ", self.U_f.eval()
-        #print "prevHIdden: ", prevHiddenState.eval()
-        #print "precCell: ", prevCellState.eval()
         forgetGate = T.nnet.sigmoid(T.dot(input, self.W_f.T) + T.dot(prevHiddenState, self.U_f.T)
                                     + self.b_f) # Should be (numSamples, dimHidden)
-        #print "Forget: " , forgetGate.eval()
         inputGate = T.nnet.sigmoid(T.dot(input, self.W_i.T) + T.dot(prevHiddenState, self.U_i.T)
                                     + self.b_i) # Ditto
-        #print "Input: " , inputGate.eval()
         candidateVals = T.tanh(T.dot(input, self.W_c.T) + T.dot(prevHiddenState, self.U_c.T)
                                 + self.b_c) # Ditto
-        #print "Candidate Vals: " , candidateVals.eval()
         candidateVals = forgetGate * prevCellState + inputGate * candidateVals # Ditto
-        #print "Transformed Candidate Vals: " , candidateVals.eval()
         output = T.nnet.sigmoid(T.dot(input, self.W_o.T) + T.dot(prevHiddenState, self.U_o.T)
                                  + self.b_o) # Ditto
-        #print "Output: " , output.eval()
         hiddenState = output * T.tanh(candidateVals) # Ditto
-        #print "Hidden State: " , hiddenState.eval()
 
         return hiddenState, candidateVals
+
 
     def forwardRun(self, inputMat, timeSteps):
         """
@@ -195,10 +203,11 @@ class HiddenLayer(object):
                                 name="layers",
                                 n_steps=timeSteps)
 
-        self.finalCandidateVal = modelOut[0][-1]
-        self.finalHiddenVal = modelOut[1][-1]
+        self.finalCandidateVal = modelOut[1][-1] #[0][-1]
+        self.finalHiddenVal = modelOut[0][-1] # [1][-1]
 
         return modelOut, updates
+
 
     def projectToCategories(self):
         """
@@ -210,6 +219,7 @@ class HiddenLayer(object):
         #print "Final b cat: ", self.b_cat.eval()
         catOutput = T.dot(self.finalHiddenVal, self.W_cat) + self.b_cat
         return catOutput
+
 
     def getPredictions(self, catOutput):
         """
@@ -264,7 +274,6 @@ class HiddenLayer(object):
         """
         theano.pp(cost)
         grads = T.grad(cost, wrt=self.params.values())
-        #theano.pp(grads)
         #costGrad = theano.function([x, yTarget], grads, name='costGradients')
         return grads #, costGrad
 
@@ -277,7 +286,7 @@ class HiddenLayer(object):
         paramUpdate = [(param, param - learnRate*grad) for param, grad in
                        zip(self.params.values(), grads)]
 
-        return theano.function([learnRate], [], updates=paramUpdate, name="sgdParamUpdate")
+        return paramUpdate #theano.function([learnRate], [], updates=paramUpdate, name="sgdParamUpdate")
 
 
 
