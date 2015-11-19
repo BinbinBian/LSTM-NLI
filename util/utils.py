@@ -99,8 +99,11 @@ def computeDataStatistics(dataSet="dev"):
     sentences = list()
     labels = list()
     vocab = set()
-    minSenLength = float("inf")
-    maxSenLength = float("-inf")
+    minSenLengthPremise = float("inf")
+    maxSenLengthPremise = float("-inf")
+
+    minSenLengthHypothesis = float("inf")
+    maxSenLengthHypothesis = float("-inf")
     allLabels = ['entailment', 'contradiction', 'neutral']
 
     for label, t1Tree, t2Tree in reader():
@@ -111,15 +114,15 @@ def computeDataStatistics(dataSet="dev"):
         t1Tokens = leaves(t1Tree)
         t2Tokens = leaves(t2Tree)
 
-        if len(t1Tokens) > maxSenLength:
-            maxSenLength = len(t1Tokens)
-        if len(t1Tokens) < minSenLength:
-            minSenLength = len(t1Tokens)
+        if len(t1Tokens) > maxSenLengthPremise:
+            maxSenLengthPremise = len(t1Tokens)
+        if len(t1Tokens) < minSenLengthPremise:
+            minSenLengthPremise = len(t1Tokens)
 
-        if len(t2Tokens) > maxSenLength:
-            maxSenLength = len(t2Tokens)
-        if len(t2Tokens) < minSenLength:
-            minSenLength = len(t2Tokens)
+        if len(t2Tokens) > maxSenLengthHypothesis:
+            maxSenLengthHypothesis = len(t2Tokens)
+        if len(t2Tokens) < minSenLengthHypothesis:
+            minSenLengthHypothesis = len(t2Tokens)
 
         vocab.update(set(t1Tokens))
         vocab.update(set(t2Tokens))
@@ -133,20 +136,23 @@ def computeDataStatistics(dataSet="dev"):
         json.dump({'labels': labels}, labelsFile)
 
     with open(dataSet+"_dataStats.json", "w") as dataStatsFile:
-        json.dump({"vocabSize": len(vocab), "minSentLen": minSenLength,
-                   "maxSentLen": maxSenLength}, dataStatsFile)
+        json.dump({"vocabSize": len(vocab), "minSentLenPremise": minSenLengthPremise,
+                   "maxSentLenPremise": maxSenLengthPremise, "minSentLenHypothesis": minSenLengthHypothesis,
+                   "maxSentLenHypothesis": maxSenLengthHypothesis}, dataStatsFile)
 
     with open(dataSet+"_sentences.json", "w") as sentenceFile:
         json.dump({"sentences": sentences}, sentenceFile)
 
 
-    return vocab, sentences, labels, minSenLength, maxSenLength
+    return vocab, sentences, labels, minSenLengthPremise, maxSenLengthPremise,\
+           minSenLengthHypothesis, maxSenLengthHypothesis
+
 
 def convertLabelsToMat(labelFile):
     """
     Converts json file of labels to a (numSamples, 3) matrix with a 1 in the column
     corresponding to the label.
-    :param labelFile:
+    :param labelFile: Path to JSON labels File
     :return: numpy matrix corresponding to the labels
     """
     labelsList = ["entailment", "contradiction", "neutral"]

@@ -1,3 +1,4 @@
+import json
 import numpy as np
 
 class EmbeddingTable(object):
@@ -73,7 +74,11 @@ class EmbeddingTable(object):
         Return the idx in the embedding lookup table for the given word. Return
          -1 if word not found in lookup table.
         """
-        return self.wordToIndex[word]
+        try:
+            idx = self.wordToIndex[word]
+            return idx
+        except:
+            return -1
 
 
     def getEmbeddingFromWord(self, word):
@@ -96,7 +101,11 @@ class EmbeddingTable(object):
          assumed to be index of embedding in lookup table.
         :param idx: Idx of word embedding
         """
-        return self.embeddings[idx]
+        try:
+            embedding = self.embeddings[idx]
+            return embedding
+        except:
+            return np.random.randn(self.dimEmbeddings)
 
 
     def convertSentToIdxMatrix(self, sentence):
@@ -110,6 +119,16 @@ class EmbeddingTable(object):
 
         return allIdx
 
+    def convertSentListToIdxMatrix(self, sentenceList):
+        """
+        Converts a given sentence into a matrix of indices for embedding lookup table.
+        :param sentence: Sentence to convert into matrix of indices
+        :return: List of lists of embedding idx
+        """
+        tokens = [word.lower() for word in sentenceList]
+        allIdx = [[self.getIdxFromWord(word)] for word in tokens]
+
+        return allIdx
 
     def convertIdxMatrixToEmbeddingList(self, idxList):
         """
@@ -122,3 +141,38 @@ class EmbeddingTable(object):
         """
         embeddingList = [self.getEmbeddingfromIdx(idx[0]) for idx in idxList]
         return embeddingList
+
+
+    def convertDataToEmbeddingTensor(self, dataJSONFile, dataStats):
+        """
+        Reads in JSON file with SNLI sentences and convert to embedding tensor. Note
+        sentences below maxLength are padded with zeros.
+
+        :param dataJSONFile: File with SNLI sentences ('train', 'dev', or 'test')
+        :param dataStats: Stats about max sent length/vocab size in data file
+        :return:
+        """
+        with open(dataJSONFile, "r") as sentFile:
+            sentences = json.load(sentFile)["sentences"]
+
+        with open(dataStats, "r") as statsFile:
+            statsJSON = json.load(statsFile)
+            maxSentLengthPremise = statsJSON["maxSentLenPremise"]
+            maxSentLengthHypothesis = statsJSON["maxSentLenHypothesis"]
+
+
+        numSent = len(sentences)
+        premiseTensor = np.zeros((maxSentLengthPremise, numSent, self.dimEmbeddings))
+        hypothesisTensor = np.zeros((maxSentLengthHypothesis, numSent, self.dimEmbeddings))
+
+        for idx, (premiseSent, hypothesisSent) in enumerate(sentences):
+            premiseIdxMat = self.convertSentListToIdxMatrix(premiseSent)
+            premiseEmbedList = self.convertIdxMatrixToEmbeddingList(premiseIdxMat)
+            premiseTensor[0:len(premiseEmbedList),idx,:] = premiseEmbedList # Pad with zeros at end
+
+            hypothesisIdxMat = self.convertSentListToIdxMatrix(hypothesisSent)
+            hypothesisEmbedList = self.convertIdxMatrixToEmbeddingList(hypothesisIdxMat)
+            hypothesisTensor[0:len(hypothesisEmbedList),idx,:] = hypothesisEmbedList
+
+        return premiseTensor, hypothesisTensor
+

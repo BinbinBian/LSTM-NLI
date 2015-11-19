@@ -86,6 +86,7 @@ def testCatProjection():
     print "b cat: ", hLayer.b_cat.eval()
     print "Cat Out: ", catOutput.eval()
 
+
 def testGetPrediction():
     hLayer = HiddenLayer(2, 2, "testHidden")
     inputMat = T.as_tensor_variable(np.random.randn(1,1,2)) #(numTimeSteps, numSamples, dimHidden)
@@ -93,7 +94,7 @@ def testGetPrediction():
     catOutput = hLayer.projectToCategories()
 
     print "Cat Out: ", catOutput.eval()
-    softmaxOut = hLayer.getPredictions(catOutput)
+    softmaxOut = hLayer.applySoftmax(catOutput)
     print "Softmax out: ", softmaxOut.eval()
 
     # cat2Output = T.alloc(np.array([[3,4,1],[2,3,4]], dtype=np.float64), 2, 3)
@@ -190,6 +191,37 @@ def testParamsBackPropUpdate():
     network.buildModel()
     network.train()
 
+
+def testPredictFunc():
+    """
+    Test the network predict function
+    """
+    network = Network()
+    network.buildModel()
+
+    symPremise = T.dtensor3("inputPremise")
+    symHypothesis = T.dtensor3("inputHypothesis")
+    premiseSent = np.random.randn(1,3,2)
+    hypothesisSent = np.random.randn(1,3,2)
+
+    predictFunc = network.predictFunc(symPremise, symHypothesis)
+    labels = network.predict(premiseSent, hypothesisSent, predictFunc)
+
+    for l in labels:
+        print "Label: %s" %(l)
+
+
+def testSNLIExample():
+    """
+    Test an example actually taken from SNLI dataset on LSTM pipeline.
+    """
+    table = EmbeddingTable(dataPath+"glove.6B.50d.txt.gz")
+    dataStats= "/Users/mihaileric/Documents/Research/LSTM-NLI/test_dataStats.json"
+    dataJSONFile= "/Users/mihaileric/Documents/Research/LSTM-NLI/test_sentences.json"
+    premiseTensor, hypothesisTensor = table.convertDataToEmbeddingTensor(
+                                                dataJSONFile, dataStats)
+
+
 if __name__ == "__main__":
   # testLabelsMat()
   # testEmbeddings()
@@ -205,4 +237,6 @@ if __name__ == "__main__":
   #testGradComputation()
    # testSGD()
    #testNetworkSetup()
-   testParamsBackPropUpdate()
+   #testParamsBackPropUpdate()
+   #testPredictFunc()
+   testSNLIExample()

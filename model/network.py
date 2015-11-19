@@ -46,8 +46,6 @@ class Network(object):
         self.hiddenLayerHypothesis = HiddenLayer(self.dimHidden, self.dimInput, "hypothesisLayer")
 
 
-
-
     def trainFunc(self, inputPremise, inputHypothesis, yTarget, learnRate):
         """
         Defines theano training function for layer, including forward runs and backpropagation.
@@ -73,7 +71,7 @@ class Network(object):
         parameters.
         """
         #for epoch in xrange(numEpochs):
-        self.hiddenLayerHypothesis.appendParams(self.hiddenLayerPremise.params) # May have to do this every time
+        self.hiddenLayerHypothesis.appendParams(self.hiddenLayerPremise.params) # May have to do this every time?
 
         inputPremise = T.dtensor3("inputPremise")
         inputHypothesis = T.dtensor3("inputHypothesis")
@@ -82,7 +80,6 @@ class Network(object):
 
         premiseSent = np.random.randn(1,1,2)
         hypothesisSent = np.random.randn(1,1,2)
-        xNP = np.array([[[0.3, 0.04]]], dtype = np.float64)
         yTargetVal = np.array([[0., 1., 0.]], dtype=np.float64)
         learnRateVal = 0.5
 
@@ -92,6 +89,45 @@ class Network(object):
         newPremiseGrads = self.hiddenLayerHypothesis.getPremiseGrads()
         self.hiddenLayerPremise.updateParams(newPremiseGrads)
 
-        self.hiddenLayerHypothesis.printParams()
+        #self.hiddenLayerHypothesis.printParams()
         trainNetFunc(premiseSent, hypothesisSent, yTargetVal, learnRateVal)
-        self.hiddenLayerHypothesis.printParams()
+        #self.hiddenLayerHypothesis.printParams()
+
+
+    def predictFunc(self, symPremise, symHypothesis):
+        """
+        Produces a theano prediction function for outputting the label of a given input.
+        Takes as input a symbolic premise and a symbolic hypothesis.
+        :return: Theano function for generating probability distribution over labels.
+        """
+        self.hiddenLayerPremise.forwardRun(symPremise, 1)
+        premiseOutputHidden = self.hiddenLayerPremise.finalHiddenVal
+        premiseOutputCandidate = self.hiddenLayerPremise.finalCandidateVal
+
+        # Run through hypothesis LSTM
+        self.hiddenLayerHypothesis.setInitialLayerParams(premiseOutputHidden, premiseOutputCandidate)
+        self.hiddenLayerHypothesis.forwardRun(symHypothesis, 1)
+        catOutput = self.hiddenLayerHypothesis.projectToCategories()
+        softMaxOut = self.hiddenLayerHypothesis.applySoftmax(catOutput)
+        #print "softMaxOut", softMaxOut.eval()
+        labelIdx = softMaxOut.argmax(axis=1)
+
+        return theano.function([symPremise, symHypothesis], labelIdx, name="predictLabelsFunction")
+
+
+    def predict(self, premiseSent, hypothesisSent, predictFunc):
+        """
+        Output Labels for given premise/hypothesis sentences pair.
+        :param premiseSent:
+        :param hypothesisSent:
+        :param predictFunc:
+        :return: Label category from among "entailment", "contradiction", "neutral"
+        """
+        categories = ["entailment", "contradiction", "neutral"]
+        labelIdx = predictFunc(premiseSent, hypothesisSent)
+        #print "label idx: ", labelIdx
+        labelCategories = []
+        for idx in labelIdx:
+            labelCategories.append(categories[idx])
+
+        return labelCategories
