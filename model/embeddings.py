@@ -119,6 +119,7 @@ class EmbeddingTable(object):
 
         return allIdx
 
+
     def convertSentListToIdxMatrix(self, sentenceList):
         """
         Converts a given sentence into a matrix of indices for embedding lookup table.
@@ -129,6 +130,20 @@ class EmbeddingTable(object):
         allIdx = [[self.getIdxFromWord(word)] for word in tokens]
 
         return allIdx
+
+
+    def convertIdxMatToIdxTensor(self, idxMat):
+        """
+        Converts an data idxMat of dim (maxSenLength, # samples, 1)
+        to (maxSenLength, # samples, dimEmbedding)
+        :param idxMat:
+        """
+        matShape = idxMat.shape
+        idxTensor = np.array(matShape[0], matShape[1], self.dimEmbeddings)
+        #for idx,
+
+        return idxTensor
+
 
     def convertIdxMatrixToEmbeddingList(self, idxList):
         """
@@ -143,7 +158,38 @@ class EmbeddingTable(object):
         return embeddingList
 
 
-    def convertDataToEmbeddingTensor(self, dataJSONFile, dataStats):
+    def convertDataToIdxMatrices(self, dataJSONFile, dataStats):
+        """
+        Converts data file to matrix of dim (# maxlength, # numSamples, 1)
+        where the last dimension stores the idx of the word embedding.
+        :param dataJSONFile:
+        :param dataStats:
+        :return:
+        """
+        with open(dataJSONFile, "r") as sentFile:
+            sentences = json.load(sentFile)["sentences"]
+
+        with open(dataStats, "r") as statsFile:
+            statsJSON = json.load(statsFile)
+            maxSentLengthPremise = statsJSON["maxSentLenPremise"]
+            maxSentLengthHypothesis = statsJSON["maxSentLenHypothesis"]
+
+
+        numSent = len(sentences)
+        premiseIdxMatrix = np.zeros((maxSentLengthPremise, numSent, 1))
+        hypothesisIdxMatrix = np.zeros((maxSentLengthHypothesis, numSent, 1))
+
+        for idx, (premiseSent, hypothesisSent) in enumerate(sentences):
+            premiseIdxMat = np.array(self.convertSentListToIdxMatrix(premiseSent))[:, 0]
+            premiseIdxMatrix[0:len(premiseIdxMat), idx, 0] = premiseIdxMat # Pad with zeros at end # Slight bug here
+
+            hypothesisIdxMat = np.array(self.convertSentListToIdxMatrix(hypothesisSent))[:, 0]
+            hypothesisIdxMatrix[0:len(hypothesisIdxMat), idx, 0] = hypothesisIdxMat
+
+        return premiseIdxMatrix, hypothesisIdxMatrix
+
+
+    def convertDataToEmbeddingTensors(self, dataJSONFile, dataStats):
         """
         Reads in JSON file with SNLI sentences and convert to embedding tensor. Note
         sentences below maxLength are padded with zeros.

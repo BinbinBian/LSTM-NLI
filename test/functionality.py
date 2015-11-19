@@ -212,6 +212,17 @@ def testPredictFunc():
         print "Label: %s" %(l)
 
 
+def testConvertToIdxMatrices():
+    """
+    Test conversion of data to embedding idx matrix.
+    """
+    table = EmbeddingTable(dataPath+"glove.6B.50d.txt.gz")
+    dataStats= "/Users/mihaileric/Documents/Research/LSTM-NLI/test_dataStats.json"
+    dataJSONFile= "/Users/mihaileric/Documents/Research/LSTM-NLI/test_sentences.json"
+    premiseIdxMatrix, hypothesisIdxMatrix = table.convertDataToIdxMatrices(
+                                                dataJSONFile, dataStats)
+
+
 def testSNLIExample():
     """
     Test an example actually taken from SNLI dataset on LSTM pipeline.
@@ -220,7 +231,7 @@ def testSNLIExample():
     table = EmbeddingTable(dataPath+"glove.6B.50d.txt.gz")
     dataStats= "/Users/mihaileric/Documents/Research/LSTM-NLI/test_dataStats.json"
     dataJSONFile= "/Users/mihaileric/Documents/Research/LSTM-NLI/test_sentences.json"
-    premiseTensor, hypothesisTensor = table.convertDataToEmbeddingTensor(
+    premiseTensor, hypothesisTensor = table.convertDataToEmbeddingTensors(
                                                 dataJSONFile, dataStats)
 
     symPremise = T.dtensor3("inputPremise")
@@ -261,4 +272,5 @@ if __name__ == "__main__":
    #testNetworkSetup()
    #testParamsBackPropUpdate()
    #testPredictFunc()
-   testSNLIExample()
+   #testSNLIExample()
+   testConvertToIdxMatrices()

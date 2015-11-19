@@ -8,13 +8,18 @@ import theano.tensor as T
 
 from model.embeddings import EmbeddingTable
 from model.layers import HiddenLayer
+from util.utils import convertLabelsToMat
 
 
 class Network(object):
     """
     Represents entire network.
     """
-    def __init__(self, numTimestepsPremise=1, numTimestepsHypothesis=1, dimHidden=2, dimInput=2, dataPath=None, optimizer="sgd"):
+    def __init__(self, numTimestepsPremise=1, numTimestepsHypothesis=1,
+                 dimHidden=2, dimInput=2, embedData=None, trainData=None,
+                 trainDataStats=None, valData=None, valDataStats=None,
+                 testData=None, testDataStats=None,
+                 trainLabels=None, valLabels=None, testLabels=None):
         """
         :param numTimesteps: Number of timesteps to unroll network for.
         :param dataPath: Path to file with precomputed word embeddings
@@ -25,7 +30,20 @@ class Network(object):
         """
         self.numTimestepsPremise = numTimestepsPremise
         self.numTimestepsHypothesis = numTimestepsHypothesis
-        self.embeddingTable = EmbeddingTable(dataPath)
+        self.embeddingTable = EmbeddingTable(embedData)
+
+        # Paths to all data files
+        self.trainData = trainData
+        self.trainDataStats = trainDataStats
+        self.trainLabels = trainLabels
+        self.valData = valData
+        self.valDataStats = valDataStats
+        self.valLabels = valLabels
+        self.testData = testData
+        self.testDataStats = testDataStats
+        self.testLabels = testLabels
+
+
         self.dimInput = dimInput
         self.dimHidden = dimHidden
         self.inputMat = None # To store matrix of data input
@@ -96,26 +114,30 @@ class Network(object):
         Takes care of training model, including propagation of errors and updating of
         parameters.
         """
+        trainPremiseIdxMat, trainHypothesisIdxMat = self.embeddingTable.convertDataToIdxMatrices(
+                                self.trainData, self.trainDataStats)
+        trainGoldLabel = convertLabelsToMat(self.trainLabels)
 
-        trainPremise = None
-        trainHypothesis = None
-        trainGoldLabel = None
+        valPremiseIdxMat, valHypothesisIdxMat = self.embeddingTable.convertDataToIdxMatrices(
+                                self.valData, self.valDataStats)
+        valGoldLabel = convertLabelsToMat(self.valLabels)
+
+
+        inputPremise = T.dtensor3("inputPremise")
+        inputHypothesis = T.dtensor3("inputHypothesis")
+        yTarget = T.dmatrix("yTarget")
+        learnRate = T.scalar(name="learnRate")
 
         for epoch in xrange(numEpochs):
             print "Epoch number: %d" %(epoch)
 
-            minibatches = self.getMinibatchesIdx(trainPremise, batchSize)
+            minibatches = self.getMinibatchesIdx(trainGoldLabel, batchSize)
             for _, minibatch in minibatches:
-                batchPremise = trainPremise[minibatch]
-                batchHypothesis = trainHypothesis[minibatch]
-                batchLabel = trainGoldLabel[minibatch]
+                batchPremise = trainPremiseIdxMat[minibatch]
+                batchHypothesis = trainHypothesisIdxMat[minibatch]
+                batchLabels = trainGoldLabel[minibatch]
 
             self.hiddenLayerHypothesis.appendParams(self.hiddenLayerPremise.params) # May have to do this every time?
-
-            inputPremise = T.dtensor3("inputPremise")
-            inputHypothesis = T.dtensor3("inputHypothesis")
-            yTarget = T.dmatrix("yTarget")
-            learnRate = T.scalar(name="learnRate")
 
             premiseSent = np.random.randn(1,1,2)
             hypothesisSent = np.random.randn(1,1,2)
