@@ -14,7 +14,7 @@ class Network(object):
     """
     Represents entire network.
     """
-    def __init__(self, numTimesteps=1, dimHidden=2, dataPath=None, optimizer="sgd"):
+    def __init__(self, numTimestepsPremise=1, numTimestepsHypothesis=1, dimHidden=2, dimInput=2, dataPath=None, optimizer="sgd"):
         """
         :param numTimesteps: Number of timesteps to unroll network for.
         :param dataPath: Path to file with precomputed word embeddings
@@ -23,10 +23,10 @@ class Network(object):
         :param optimizer: Optimization algorithm to use for training. Will
                           eventually support adagrad, etc.
         """
-        self.numTimesteps = numTimesteps
+        self.numTimestepsPremise = numTimestepsPremise
+        self.numTimestepsHypothesis = numTimestepsHypothesis
         self.embeddingTable = EmbeddingTable(dataPath)
-        #self.dimInput = self.embeddingTable.dimEmbeddings
-        self.dimInput = 2
+        self.dimInput = dimInput
         self.dimHidden = dimHidden
         self.inputMat = None # To store matrix of data input
 
@@ -34,16 +34,41 @@ class Network(object):
         self.hypothesisLSTMName = "hypotheisLayer"
 
 
+    def getMinibatchesIdx(self, numDataPoints, minibatchSize, shuffle=False):
+        """
+        Used to shuffle the dataset at each iteration. Return list of
+        (batch #, batch) pairs.
+        """
+
+        idxList = np.arange(numDataPoints, dtype="int32")
+
+        if shuffle:
+            np.random.shuffle(idxList)
+
+        minibatches = []
+        minibatchStart = 0
+        for i in xrange(numDataPoints // minibatchSize):
+            minibatches.append(idxList[minibatchStart:
+                                        minibatchStart + minibatchSize])
+            minibatchStart += minibatchSize
+
+        if (minibatchStart != numDataPoints):
+            # Make a minibatch out of what is left
+            minibatches.append(idxList[minibatchStart:])
+
+        return zip(range(len(minibatches)), minibatches)
+
+
     def buildModel(self):
         """
         Handles building of model, including initializing necessary parameters, defining
         loss functions, etc.
         """
-        self.hiddenLayerPremise = HiddenLayer(self.dimHidden, self.dimInput, "premiseLayer")
+        self.hiddenLayerPremise = HiddenLayer(self.dimInput, self.dimHidden, "premiseLayer")
         del self.hiddenLayerPremise.params["weightsCat_premiseLayer"] # Need to make sure not differentiating with respect to Wcat of premise
         del self.hiddenLayerPremise.params["biasCat_premiseLayer"] # May want to find cleaner way to deal with this later
 
-        self.hiddenLayerHypothesis = HiddenLayer(self.dimHidden, self.dimInput, "hypothesisLayer")
+        self.hiddenLayerHypothesis = HiddenLayer(self.dimInput, self.dimHidden, "hypothesisLayer")
 
 
     def trainFunc(self, inputPremise, inputHypothesis, yTarget, learnRate):
@@ -65,33 +90,45 @@ class Network(object):
         return trainF
 
 
-    def train(self, numEpochs=5, batchSize=1):
+# TODO: Write code for saving trained models!
+    def train(self, numEpochs=1, batchSize=1):
         """
         Takes care of training model, including propagation of errors and updating of
         parameters.
         """
-        #for epoch in xrange(numEpochs):
-        self.hiddenLayerHypothesis.appendParams(self.hiddenLayerPremise.params) # May have to do this every time?
 
-        inputPremise = T.dtensor3("inputPremise")
-        inputHypothesis = T.dtensor3("inputHypothesis")
-        yTarget = T.dmatrix("yTarget")
-        learnRate = T.scalar(name="learnRate")
+        trainPremise = None
+        trainHypothesis = None
+        trainGoldLabel = None
 
-        premiseSent = np.random.randn(1,1,2)
-        hypothesisSent = np.random.randn(1,1,2)
-        yTargetVal = np.array([[0., 1., 0.]], dtype=np.float64)
-        learnRateVal = 0.5
+        for epoch in xrange(numEpochs):
+            print "Epoch number: %d" %(epoch)
 
-        trainNetFunc = self.trainFunc(inputPremise, inputHypothesis, yTarget, learnRate)
+            minibatches = self.getMinibatchesIdx(trainPremise, batchSize)
+            for _, minibatch in minibatches:
+                batchPremise = trainPremise[minibatch]
+                batchHypothesis = trainHypothesis[minibatch]
+                batchLabel = trainGoldLabel[minibatch]
 
-        gradOut = trainNetFunc(premiseSent, hypothesisSent, yTargetVal, learnRateVal)
-        newPremiseGrads = self.hiddenLayerHypothesis.getPremiseGrads()
-        self.hiddenLayerPremise.updateParams(newPremiseGrads)
+            self.hiddenLayerHypothesis.appendParams(self.hiddenLayerPremise.params) # May have to do this every time?
 
-        #self.hiddenLayerHypothesis.printParams()
-        trainNetFunc(premiseSent, hypothesisSent, yTargetVal, learnRateVal)
-        #self.hiddenLayerHypothesis.printParams()
+            inputPremise = T.dtensor3("inputPremise")
+            inputHypothesis = T.dtensor3("inputHypothesis")
+            yTarget = T.dmatrix("yTarget")
+            learnRate = T.scalar(name="learnRate")
+
+            premiseSent = np.random.randn(1,1,2)
+            hypothesisSent = np.random.randn(1,1,2)
+            yTargetVal = np.array([[0., 1., 0.]], dtype=np.float64)
+            learnRateVal = 0.5
+
+            trainNetFunc = self.trainFunc(inputPremise, inputHypothesis, yTarget, learnRate)
+
+            gradOut = trainNetFunc(premiseSent, hypothesisSent, yTargetVal, learnRateVal)
+            newPremiseGrads = self.hiddenLayerHypothesis.getPremiseGrads()
+            self.hiddenLayerPremise.updateParams(newPremiseGrads)
+
+            trainNetFunc(premiseSent, hypothesisSent, yTargetVal, learnRateVal)
 
 
     def predictFunc(self, symPremise, symHypothesis):

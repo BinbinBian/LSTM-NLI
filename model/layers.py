@@ -15,7 +15,7 @@ class HiddenLayer(object):
         :param inputMat: Matrix of input vectors to use for unraveling
                          hidden layer.
         :param dimInput: Dimension of vector of input to hidden cell.
-        :param dimState: Dimension of hidden HiddenState.
+        :param dimHiddenState: Dimension of hidden state.
         :param layerName: Name of current LSTM layer ('premise', 'hypothesis')
         """
         # Dictionary of model parameters.
@@ -193,8 +193,6 @@ class HiddenLayer(object):
             hiddenInit = self.hiddenInit
             candidateValsInit = self.candidateValInit
 
-        #print hiddenInit.eval()
-        #print candidateValsInit.eval()
         modelOut, updates = theano.scan(self._step,
                                 sequences=[inputMat],
                                 outputs_info=[hiddenInit, candidateValsInit], # Running a batch of samples at a time

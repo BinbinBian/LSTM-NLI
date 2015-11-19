@@ -5,6 +5,7 @@ of system.
 import numpy as np
 import theano
 import theano.tensor as T
+import time
 
 from model.embeddings import EmbeddingTable
 from model.layers import HiddenLayer
@@ -201,8 +202,8 @@ def testPredictFunc():
 
     symPremise = T.dtensor3("inputPremise")
     symHypothesis = T.dtensor3("inputHypothesis")
-    premiseSent = np.random.randn(1,3,2)
-    hypothesisSent = np.random.randn(1,3,2)
+    premiseSent = np.random.randn(1,1,2)
+    hypothesisSent = np.random.randn(1,1,2)
 
     predictFunc = network.predictFunc(symPremise, symHypothesis)
     labels = network.predict(premiseSent, hypothesisSent, predictFunc)
@@ -215,11 +216,32 @@ def testSNLIExample():
     """
     Test an example actually taken from SNLI dataset on LSTM pipeline.
     """
+    start = time.time()
     table = EmbeddingTable(dataPath+"glove.6B.50d.txt.gz")
     dataStats= "/Users/mihaileric/Documents/Research/LSTM-NLI/test_dataStats.json"
     dataJSONFile= "/Users/mihaileric/Documents/Research/LSTM-NLI/test_sentences.json"
     premiseTensor, hypothesisTensor = table.convertDataToEmbeddingTensor(
                                                 dataJSONFile, dataStats)
+
+    symPremise = T.dtensor3("inputPremise")
+    symHypothesis = T.dtensor3("inputHypothesis")
+
+    premiseSent = premiseTensor[:, 0:3, :]
+    hypothesisSent = hypothesisTensor[:, 0:3, :]
+
+    #print firstPremiseEx.shape
+    #print firstHypothesisEx.shape
+
+    network = Network(numTimestepsPremise=57, numTimestepsHypothesis=30, dimInput=50)
+    network.buildModel()
+
+    predictFunc = network.predictFunc(symPremise, symHypothesis)
+    labels = network.predict(premiseSent, hypothesisSent, predictFunc)
+
+    for l in labels:
+        print "Label: %s" %(l)
+
+    print "Time for evaluation: %f" %(time.time() - start)
 
 
 if __name__ == "__main__":

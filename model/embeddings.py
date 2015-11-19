@@ -168,11 +168,11 @@ class EmbeddingTable(object):
         for idx, (premiseSent, hypothesisSent) in enumerate(sentences):
             premiseIdxMat = self.convertSentListToIdxMatrix(premiseSent)
             premiseEmbedList = self.convertIdxMatrixToEmbeddingList(premiseIdxMat)
-            premiseTensor[0:len(premiseEmbedList),idx,:] = premiseEmbedList # Pad with zeros at end
+            premiseTensor[0:len(premiseEmbedList), idx, :] = premiseEmbedList # Pad with zeros at end
 
             hypothesisIdxMat = self.convertSentListToIdxMatrix(hypothesisSent)
             hypothesisEmbedList = self.convertIdxMatrixToEmbeddingList(hypothesisIdxMat)
-            hypothesisTensor[0:len(hypothesisEmbedList),idx,:] = hypothesisEmbedList
+            hypothesisTensor[0:len(hypothesisEmbedList), idx, :] = hypothesisEmbedList
 
         return premiseTensor, hypothesisTensor
 
