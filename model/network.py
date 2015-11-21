@@ -128,13 +128,19 @@ class Network(object):
         yTarget = T.dmatrix("yTarget")
         learnRate = T.scalar(name="learnRate")
 
+        learnRateVal = 0.5
+
         for epoch in xrange(numEpochs):
             print "Epoch number: %d" %(epoch)
 
             minibatches = self.getMinibatchesIdx(trainGoldLabel, batchSize)
             for _, minibatch in minibatches:
-                batchPremise = trainPremiseIdxMat[minibatch]
-                batchHypothesis = trainHypothesisIdxMat[minibatch]
+                batchPremise = trainPremiseIdxMat[:, minibatch, :]
+                batchPremiseTensor = self.embeddingTable.convertIdxMatToIdxTensor(batchPremise)
+                batchHypothesis = trainHypothesisIdxMat[:, minibatch, :]
+                batchHypothesisTensor = self.embeddingTable.convertIdxMatToIdxTensor(batchHypothesis)
+
+                # TODO: Check dimensions of tensors
                 batchLabels = trainGoldLabel[minibatch]
 
             self.hiddenLayerHypothesis.appendParams(self.hiddenLayerPremise.params) # May have to do this every time?
@@ -142,7 +148,7 @@ class Network(object):
             premiseSent = np.random.randn(1,1,2)
             hypothesisSent = np.random.randn(1,1,2)
             yTargetVal = np.array([[0., 1., 0.]], dtype=np.float64)
-            learnRateVal = 0.5
+
 
             trainNetFunc = self.trainFunc(inputPremise, inputHypothesis, yTarget, learnRate)
 

@@ -139,8 +139,12 @@ class EmbeddingTable(object):
         :param idxMat:
         """
         matShape = idxMat.shape
-        idxTensor = np.array(matShape[0], matShape[1], self.dimEmbeddings)
-        #for idx,
+        idxTensor = np.zeros((matShape[0], matShape[1], self.dimEmbeddings))
+        for tokenIdx in xrange(matShape[0]):
+            for sampleIdx in xrange(matShape[1]):
+                embeddingIdx = idxMat[tokenIdx, sampleIdx, 0]
+                idxTensor[tokenIdx, sampleIdx, :] = self.getEmbeddingfromIdx\
+                                                            (embeddingIdx)
 
         return idxTensor
 
@@ -178,6 +182,8 @@ class EmbeddingTable(object):
         numSent = len(sentences)
         premiseIdxMatrix = np.zeros((maxSentLengthPremise, numSent, 1))
         hypothesisIdxMatrix = np.zeros((maxSentLengthHypothesis, numSent, 1))
+
+        # TODO: Maybe pad with -1?
 
         for idx, (premiseSent, hypothesisSent) in enumerate(sentences):
             premiseIdxMat = np.array(self.convertSentListToIdxMatrix(premiseSent))[:, 0]

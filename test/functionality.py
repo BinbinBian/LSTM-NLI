@@ -223,6 +223,21 @@ def testConvertToIdxMatrices():
                                                 dataJSONFile, dataStats)
 
 
+def testConvertIdxMatToIdxTensor():
+    """
+    Test conversion from idxMat to IdxTensor.
+    """
+    table = EmbeddingTable(dataPath+"glove.6B.50d.txt.gz")
+    idxMat = np.array([[[3], [5], [-1]]])
+    idxTensor = table.convertIdxMatToIdxTensor(idxMat)
+
+    idxMat2 = np.zeros((2, 3, 4))
+    idxMat2.fill(-1)
+    idxTensor2 = table.convertIdxMatToIdxTensor(idxMat2)
+    print 'hi'
+
+
+
 def testSNLIExample():
     """
     Test an example actually taken from SNLI dataset on LSTM pipeline.
@@ -273,4 +288,5 @@ if __name__ == "__main__":
    #testParamsBackPropUpdate()
    #testPredictFunc()
    #testSNLIExample()
-   testConvertToIdxMatrices()
+   #testConvertToIdxMatrices()
+   testConvertIdxMatToIdxTensor()
