@@ -270,6 +270,24 @@ def testSNLIExample():
     print "Time for evaluation: %f" %(time.time() - start)
 
 
+embedData = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/glove.6B.50d.txt.gz"
+trainData = "/Users/mihaileric/Documents/Research/LSTM-NLI/train_sentences.json"
+trainDatStats = "/Users/mihaileric/Documents/Research/LSTM-NLI/train_dataStats.json"
+trainLabels = "train_labels.json"
+valData = "/Users/mihaileric/Documents/Research/LSTM-NLI/dev_sentences.json"
+valDataStats = "/Users/mihaileric/Documents/Research/LSTM-NLI/dev_dataStats.json"
+valLabels = "/Users/mihaileric/Documents/Research/LSTM-NLI/dev_labels.json"
+
+def testTrainFunctionality():
+    network = Network(numTimestepsPremise=57, numTimestepsHypothesis=30,
+                      dimInput=50, embedData=embedData, trainData=trainData,
+                    trainLabels=trainLabels, trainDataStats=trainDatStats,
+                    valData=valData, valDataStats=valDataStats, valLabels=valLabels)
+    network.buildModel()
+    network.train()
+
+
+
 if __name__ == "__main__":
   # testLabelsMat()
   # testEmbeddings()
@@ -289,4 +307,5 @@ if __name__ == "__main__":
    #testPredictFunc()
    #testSNLIExample()
    #testConvertToIdxMatrices()
-   testConvertIdxMatToIdxTensor()
+   #testConvertIdxMatToIdxTensor()
+   testTrainFunctionality()

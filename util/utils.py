@@ -160,7 +160,7 @@ def convertLabelsToMat(labelFile):
         labelsObj = json.load(f)
         labels = labelsObj["labels"]
 
-        labelsMat = np.zeros((len(labels), 3), dtype=np.float64)
+        labelsMat = np.zeros((len(labels), 3), dtype=np.float32)
         for idx, label in enumerate(labels):
             labelIdx = labelsList.index(label)
             labelsMat[idx][labelIdx] = 1.

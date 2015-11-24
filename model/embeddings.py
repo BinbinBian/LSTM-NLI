@@ -139,7 +139,8 @@ class EmbeddingTable(object):
         :param idxMat:
         """
         matShape = idxMat.shape
-        idxTensor = np.zeros((matShape[0], matShape[1], self.dimEmbeddings))
+        idxTensor = np.zeros((matShape[0], matShape[1], self.dimEmbeddings),
+                             dtype=np.float32)
         for tokenIdx in xrange(matShape[0]):
             for sampleIdx in xrange(matShape[1]):
                 embeddingIdx = idxMat[tokenIdx, sampleIdx, 0]
@@ -180,10 +181,14 @@ class EmbeddingTable(object):
 
 
         numSent = len(sentences)
-        premiseIdxMatrix = np.zeros((maxSentLengthPremise, numSent, 1))
-        hypothesisIdxMatrix = np.zeros((maxSentLengthHypothesis, numSent, 1))
+        premiseIdxMatrix = np.zeros((maxSentLengthPremise, numSent, 1),
+                                    dtype=np.float32)
+        hypothesisIdxMatrix = np.zeros((maxSentLengthHypothesis, numSent, 1),
+                                       dtype=np.float32)
 
-        # TODO: Maybe pad with -1?
+        # Fill with 'nan' so that we get random embeddings for words that don't exist
+        premiseIdxMatrix.fill(np.nan)
+        hypothesisIdxMatrix.fill(np.nan)
 
         for idx, (premiseSent, hypothesisSent) in enumerate(sentences):
             premiseIdxMat = np.array(self.convertSentListToIdxMatrix(premiseSent))[:, 0]

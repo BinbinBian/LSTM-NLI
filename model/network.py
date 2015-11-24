@@ -109,54 +109,56 @@ class Network(object):
 
 
 # TODO: Write code for saving trained models!
-    def train(self, numEpochs=1, batchSize=1):
+    def train(self, numEpochs=1, batchSize=5):
         """
         Takes care of training model, including propagation of errors and updating of
         parameters.
         """
-        trainPremiseIdxMat, trainHypothesisIdxMat = self.embeddingTable.convertDataToIdxMatrices(
-                                self.trainData, self.trainDataStats)
-        trainGoldLabel = convertLabelsToMat(self.trainLabels)
+        # trainPremiseIdxMat, trainHypothesisIdxMat = self.embeddingTable.convertDataToIdxMatrices(
+        #                         self.trainData, self.trainDataStats)
+        # trainGoldLabel = convertLabelsToMat(self.trainLabels)
 
         valPremiseIdxMat, valHypothesisIdxMat = self.embeddingTable.convertDataToIdxMatrices(
                                 self.valData, self.valDataStats)
         valGoldLabel = convertLabelsToMat(self.valLabels)
 
 
-        inputPremise = T.dtensor3("inputPremise")
-        inputHypothesis = T.dtensor3("inputHypothesis")
-        yTarget = T.dmatrix("yTarget")
-        learnRate = T.scalar(name="learnRate")
+        inputPremise = T.ftensor3(name="inputPremise")
+        inputHypothesis = T.ftensor3(name="inputHypothesis")
+        yTarget = T.fmatrix(name="yTarget")
+        learnRate = T.scalar(name="learnRate", dtype='float32')
 
-        learnRateVal = 0.5
+        learnRateVal = 0.1
+
+        self.hiddenLayerHypothesis.appendParams(self.hiddenLayerPremise.params)
+        trainNetFunc = self.trainFunc(inputPremise, inputHypothesis, yTarget, learnRate)
 
         for epoch in xrange(numEpochs):
             print "Epoch number: %d" %(epoch)
 
-            minibatches = self.getMinibatchesIdx(trainGoldLabel, batchSize)
+            minibatches = self.getMinibatchesIdx(len(valGoldLabel), batchSize)
             for _, minibatch in minibatches:
-                batchPremise = trainPremiseIdxMat[:, minibatch, :]
+                print "Minibatch Idx: %s" %(minibatch)
+
+                batchPremise = valPremiseIdxMat[0:self.numTimestepsPremise, minibatch, :]
                 batchPremiseTensor = self.embeddingTable.convertIdxMatToIdxTensor(batchPremise)
-                batchHypothesis = trainHypothesisIdxMat[:, minibatch, :]
+                batchHypothesis = valHypothesisIdxMat[0:self.numTimestepsHypothesis, minibatch, :]
                 batchHypothesisTensor = self.embeddingTable.convertIdxMatToIdxTensor(batchHypothesis)
 
-                # TODO: Check dimensions of tensors
-                batchLabels = trainGoldLabel[minibatch]
+                batchLabels = valGoldLabel[minibatch]
 
-            self.hiddenLayerHypothesis.appendParams(self.hiddenLayerPremise.params) # May have to do this every time?
+                # premiseSent = np.random.randn(1,1,2)
+                # hypothesisSent = np.random.randn(1,1,2)
+                # yTargetVal = np.array([[0., 1., 0.]], dtype=np.float64)
 
-            premiseSent = np.random.randn(1,1,2)
-            hypothesisSent = np.random.randn(1,1,2)
-            yTargetVal = np.array([[0., 1., 0.]], dtype=np.float64)
+                self.hiddenLayerPremise.printParams()
+                gradOut = trainNetFunc(batchPremiseTensor,
+                                       batchHypothesisTensor, batchLabels, learnRateVal)
+                newPremiseGrads = self.hiddenLayerHypothesis.getPremiseGrads()
+                self.hiddenLayerPremise.updateParams(newPremiseGrads)
+                self.hiddenLayerPremise.printParams()
 
-
-            trainNetFunc = self.trainFunc(inputPremise, inputHypothesis, yTarget, learnRate)
-
-            gradOut = trainNetFunc(premiseSent, hypothesisSent, yTargetVal, learnRateVal)
-            newPremiseGrads = self.hiddenLayerHypothesis.getPremiseGrads()
-            self.hiddenLayerPremise.updateParams(newPremiseGrads)
-
-            trainNetFunc(premiseSent, hypothesisSent, yTargetVal, learnRateVal)
+                self.hiddenLayerHypothesis.appendParams(self.hiddenLayerPremise.params)
 
 
     def predictFunc(self, symPremise, symHypothesis):
