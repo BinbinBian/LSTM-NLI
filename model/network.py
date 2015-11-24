@@ -49,7 +49,40 @@ class Network(object):
         self.inputMat = None # To store matrix of data input
 
         self.premiseLSTMName = "premiseLayer"
-        self.hypothesisLSTMName = "hypotheisLayer"
+        self.hypothesisLSTMName = "hypothesisLayer"
+
+        self.numericalParams = {} # Will store the numerical values of the
+                        # theano variables that represent the params of the
+                        # model; stored as dict of (name, value) pairs
+
+
+    def extractParams(self):
+        """ Extracts the numerical value of the model params and
+        stored in model variable
+        """
+        for paramName, paramVar in self.hiddenLayerHypothesis.params.iteritems():
+            self.numericalParams[paramName] = paramVar.get_value()
+
+
+    def saveModel(self, modelFileName):
+        """ Saves the parameters of the model to disk.
+        """
+        with open(modelFileName, 'w') as f:
+            np.savez(f, **self.numericalParams)
+
+
+    def loadModel(self, modelFileName):
+        """
+        Loads the given model and sets the parameters of the network to the
+        loaded parameter values
+        :param modelFileName:
+        """
+        with open(modelFileName, 'r') as f:
+            params = np.load(f)
+            for paramName, paramVal in params.iteritems():
+                self.hiddenLayerHypothesis.params[paramName].set_value(paramVal)
+
+        #TODO: Also update hiddenLayerPremise params
 
 
     def getMinibatchesIdx(self, numDataPoints, minibatchSize, shuffle=False):
@@ -108,7 +141,6 @@ class Network(object):
         return trainF
 
 
-# TODO: Write code for saving trained models!
     def train(self, numEpochs=1, batchSize=5):
         """
         Takes care of training model, including propagation of errors and updating of

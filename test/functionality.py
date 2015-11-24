@@ -287,6 +287,15 @@ def testTrainFunctionality():
     network.train()
 
 
+def testExtractParamsAndSaveModel():
+    network =  Network(numTimestepsPremise=57, numTimestepsHypothesis=30,
+                      dimInput=50, embedData=embedData, trainData=trainData,
+                    trainLabels=trainLabels, trainDataStats=trainDatStats,
+                    valData=valData, valDataStats=valDataStats, valLabels=valLabels)
+    network.buildModel()
+    network.extractParams()
+    network.saveModel("savedParamsFile.npz")
+
 
 if __name__ == "__main__":
   # testLabelsMat()
@@ -308,4 +317,5 @@ if __name__ == "__main__":
    #testSNLIExample()
    #testConvertToIdxMatrices()
    #testConvertIdxMatToIdxTensor()
-   testTrainFunctionality()
+   #testTrainFunctionality()
+   testExtractParamsAndSaveModel()
