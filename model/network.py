@@ -111,7 +111,8 @@ class Network(object):
                 self.hiddenLayerPremise.params[paramName].set_value(paramVal)
 
 
-    def getMinibatchesIdx(self, numDataPoints, minibatchSize, shuffle=False):
+    @staticmethod
+    def getMinibatchesIdx(numDataPoints, minibatchSize, shuffle=False):
         """
         Used to shuffle the dataset at each iteration. Return list of
         (batch #, batch) pairs.
@@ -134,6 +135,34 @@ class Network(object):
             minibatches.append(idxList[minibatchStart:])
 
         return zip(range(len(minibatches)), minibatches)
+
+
+    # TODO: Test this
+    def computeAccuracy(self, dataPremiseMat, dataHypothesisMat, dataTarget):
+        """
+        Computes the accuracy for the given network on a certain dataset.
+        """
+        numExamples = len(dataTarget)
+        correctPredictions = 0.
+
+        inputPremise = T.ftensor3("inputPremise")
+        inputHypothesis = T.ftensor3("inputHypothesis")
+        predictFn = self.predictFunc(inputPremise, inputHypothesis)
+
+        miniBatches = Network.getMinibatchesIdx(len(dataTarget), 10)
+
+        for _, minibatch in miniBatches:
+            batchPremise = dataPremiseMat[0:self.numTimestepsPremise, minibatch, :]
+            batchPremiseTensor = self.embeddingTable.convertIdxMatToIdxTensor(batchPremise)
+            batchHypothesis = dataHypothesisMat[0:self.numTimestepsHypothesis, minibatch, :]
+            batchHypothesisTensor = self.embeddingTable.convertIdxMatToIdxTensor(batchHypothesis)
+
+            prediction = predictFn(batchPremiseTensor, batchHypothesisTensor)
+            batchLabels = dataTarget[minibatch]
+
+            correctPredictions += (prediction == batchLabels).sum()
+
+        return correctPredictions/numExamples
 
 
     def buildModel(self):
@@ -191,12 +220,15 @@ class Network(object):
         self.hiddenLayerHypothesis.appendParams(self.hiddenLayerPremise.params)
         trainNetFunc = self.trainFunc(inputPremise, inputHypothesis, yTarget, learnRate)
 
+        # Training
         for epoch in xrange(numEpochs):
             print "Epoch number: %d" %(epoch)
-        
-            minibatches = self.getMinibatchesIdx(len(valGoldLabel), batchSize)
+
+            minibatches = Network.getMinibatchesIdx(len(valGoldLabel), batchSize)
+            numExamples = 0
             for _, minibatch in minibatches:
-                print "Minibatch Idx: %s" %(minibatch)
+                numExamples += len(minibatch)
+                print "Processed {0} examples".format(str(numExamples))
 
                 batchPremise = valPremiseIdxMat[0:self.numTimestepsPremise, minibatch, :]
                 batchPremiseTensor = self.embeddingTable.convertIdxMatToIdxTensor(batchPremise)
@@ -215,11 +247,19 @@ class Network(object):
 
                 self.hiddenLayerHypothesis.appendParams(self.hiddenLayerPremise.params)
 
+        print "Training complete!"
+
         # Save model to disk
+        print "Saving model..."
         self.extractParams()
         configString = "batch={0},epoch={1},learnR={2}".format(str(batchSize),
                                             str(numEpochs), str(learnRateVal))
         self.saveModel("basicLSTM_"+configString+".npz")
+        print "Model saved!"
+
+        # Train Accuracy
+
+        # Val Accuracy
 
 
     def predictFunc(self, symPremise, symHypothesis):
