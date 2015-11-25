@@ -288,13 +288,30 @@ def testTrainFunctionality():
 
 
 def testExtractParamsAndSaveModel():
-    network =  Network(numTimestepsPremise=57, numTimestepsHypothesis=30,
+    network = Network(numTimestepsPremise=57, numTimestepsHypothesis=30,
                       dimInput=50, embedData=embedData, trainData=trainData,
                     trainLabels=trainLabels, trainDataStats=trainDatStats,
                     valData=valData, valDataStats=valDataStats, valLabels=valLabels)
     network.buildModel()
     network.extractParams()
     network.saveModel("savedParamsFile.npz")
+
+
+def testSaveLoadModel():
+    network = Network(numTimestepsPremise=57, numTimestepsHypothesis=30,
+                      dimInput=50, embedData=embedData, trainData=trainData,
+                    trainLabels=trainLabels, trainDataStats=trainDatStats,
+                    valData=valData, valDataStats=valDataStats, valLabels=valLabels)
+    #network.buildModel()
+    network.train()
+
+    network2 = Network(numTimestepsPremise=57, numTimestepsHypothesis=30,
+                      dimInput=50, embedData=embedData, trainData=trainData,
+                    trainLabels=trainLabels, trainDataStats=trainDatStats,
+                    valData=valData, valDataStats=valDataStats, valLabels=valLabels)
+    #network2.buildModel()
+    network2.loadModel("basicLSTM_batch=5,epoch=1,learnR=0.1.npz")
+    network2.printNetworkParams()
 
 
 if __name__ == "__main__":
@@ -318,4 +335,5 @@ if __name__ == "__main__":
    #testConvertToIdxMatrices()
    #testConvertIdxMatToIdxTensor()
    #testTrainFunctionality()
-   testExtractParamsAndSaveModel()
+   #testExtractParamsAndSaveModel()
+   testSaveLoadModel()

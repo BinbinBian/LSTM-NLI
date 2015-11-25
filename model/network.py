@@ -55,6 +55,14 @@ class Network(object):
                         # theano variables that represent the params of the
                         # model; stored as dict of (name, value) pairs
 
+        self.buildModel()
+
+    def printNetworkParams(self):
+        """Print all params of network.
+        """
+        self.hiddenLayerPremise.printParams()
+        self.hiddenLayerHypothesis.printParams()
+
 
     def extractParams(self):
         """ Extracts the numerical value of the model params and
@@ -79,10 +87,28 @@ class Network(object):
         """
         with open(modelFileName, 'r') as f:
             params = np.load(f)
+            premiseParams = {}
             for paramName, paramVal in params.iteritems():
-                self.hiddenLayerHypothesis.params[paramName].set_value(paramVal)
+                paramPrefix, layerName = paramName.split("_")
 
-        #TODO: Also update hiddenLayerPremise params
+                # Set hypothesis params
+                try:
+                    self.hiddenLayerHypothesis.params[paramName].set_value(paramVal)
+                except:
+                    if paramPrefix[0:4] == "bias": # Hacky
+                        self.hiddenLayerHypothesis.params[paramName] = \
+                            theano.shared(paramVal, broadcastable=(True, False))
+                    else:
+                        self.hiddenLayerHypothesis.params[paramName] = \
+                            theano.shared(paramVal)
+
+                # Find params of premise layer
+                if layerName == "premiseLayer":
+                    premiseParams[paramName] = paramVal
+
+            # Set premise params
+            for paramName, paramVal in premiseParams.iteritems():
+                self.hiddenLayerPremise.params[paramName].set_value(paramVal)
 
 
     def getMinibatchesIdx(self, numDataPoints, minibatchSize, shuffle=False):
@@ -167,7 +193,7 @@ class Network(object):
 
         for epoch in xrange(numEpochs):
             print "Epoch number: %d" %(epoch)
-
+        
             minibatches = self.getMinibatchesIdx(len(valGoldLabel), batchSize)
             for _, minibatch in minibatches:
                 print "Minibatch Idx: %s" %(minibatch)
@@ -179,9 +205,6 @@ class Network(object):
 
                 batchLabels = valGoldLabel[minibatch]
 
-                # premiseSent = np.random.randn(1,1,2)
-                # hypothesisSent = np.random.randn(1,1,2)
-                # yTargetVal = np.array([[0., 1., 0.]], dtype=np.float64)
 
                 self.hiddenLayerPremise.printParams()
                 gradOut = trainNetFunc(batchPremiseTensor,
@@ -191,6 +214,12 @@ class Network(object):
                 self.hiddenLayerPremise.printParams()
 
                 self.hiddenLayerHypothesis.appendParams(self.hiddenLayerPremise.params)
+
+        # Save model to disk
+        self.extractParams()
+        configString = "batch={0},epoch={1},learnR={2}".format(str(batchSize),
+                                            str(numEpochs), str(learnRateVal))
+        self.saveModel("basicLSTM_"+configString+".npz")
 
 
     def predictFunc(self, symPremise, symHypothesis):
@@ -208,7 +237,6 @@ class Network(object):
         self.hiddenLayerHypothesis.forwardRun(symHypothesis, 1)
         catOutput = self.hiddenLayerHypothesis.projectToCategories()
         softMaxOut = self.hiddenLayerHypothesis.applySoftmax(catOutput)
-        #print "softMaxOut", softMaxOut.eval()
         labelIdx = softMaxOut.argmax(axis=1)
 
         return theano.function([symPremise, symHypothesis], labelIdx, name="predictLabelsFunction")
