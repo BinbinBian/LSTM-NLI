@@ -20,6 +20,7 @@ if __name__ == "__main__":
                         help="number of epochs to use for training")
     # TODO: Parse additional arguments as necessary
     args = parser.parse_args()
-
-    network = Network() # Will pass arguments parsed here
-    network.train(args.numEpochs, args.batchSize)
+	print "Batch size: {0}".format(args.batchSize)
+	print "Hidden dim: {0}".format(args.hiddenDim)
+    #network = Network() # Will pass arguments parsed here
+    #network.train(args.numEpochs, args.batchSize)
