@@ -154,7 +154,6 @@ class Network(object):
         return zip(range(len(minibatches)), minibatches)
 
 
-    # TODO: Test this
     def computeAccuracy(self, dataPremiseMat, dataHypothesisMat, dataTarget):
         """
         Computes the accuracy for the given network on a certain dataset.
@@ -278,8 +277,14 @@ class Network(object):
         print "Model saved!"
 
         # Train Accuracy
+        # trainAccuracy = self.computeAccuracy(trainPremiseIdxMat,
+        #                             trainHypothesisIdxMat, trainGoldLabel)
+        # print "Training accuracy: {0}".format(trainAccuracy)
 
         # Val Accuracy
+        valAccuracy = self.computeAccuracy(valPremiseIdxMat,
+                                    valHypothesisIdxMat, valGoldLabel)
+        print "Validation accuracy: {0}".format(valAccuracy)
 
 
     def predictFunc(self, symPremise, symHypothesis):

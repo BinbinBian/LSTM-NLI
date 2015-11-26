@@ -4,6 +4,7 @@ import argparse
 import sys
 import os
 
+# May need to change this path
 sys.path.append("/Users/mihaileric/Documents/Research/LSTM-NLI/")
 
 from model.network import Network
@@ -18,8 +19,7 @@ if __name__ == "__main__":
     parser.add_argument("--numEpochs", type=int, default=4,
                         help="number of epochs to use for training")
     # TODO: Parse additional arguments as necessary
-
     args = parser.parse_args()
+
     network = Network() # Will pass arguments parsed here
-    network.buildModel()
     network.train(args.numEpochs, args.batchSize)
