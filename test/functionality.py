@@ -14,9 +14,12 @@ from util.utils import convertLabelsToMat
 
 dataPath = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/"
 
+
 def testLabelsMat():
-    labelsMat = convertLabelsToMat("/Users/mihaileric/Documents/Research/LSTM-NLI/test_labels.json")
+    labelsMat = convertLabelsToMat("/Users/mihaileric/Documents/Research/"
+                                   "LSTM-NLI/data/snli_1.0_dev.jsonl")
     print labelsMat
+
 
 def testEmbeddings():
     table = EmbeddingTable(dataPath+"glove.6B.50d.txt.gz")
@@ -217,8 +220,8 @@ def testConvertToIdxMatrices():
     Test conversion of data to embedding idx matrix.
     """
     table = EmbeddingTable(dataPath+"glove.6B.50d.txt.gz")
-    dataStats= "/Users/mihaileric/Documents/Research/LSTM-NLI/test_dataStats.json"
-    dataJSONFile= "/Users/mihaileric/Documents/Research/LSTM-NLI/test_sentences.json"
+    dataStats= "/Users/mihaileric/Documents/Research/LSTM-NLI/data/dev_dataStats.json"
+    dataJSONFile= "/Users/mihaileric/Documents/Research/LSTM-NLI/data/snli_1.0_dev.jsonl"
     premiseIdxMatrix, hypothesisIdxMatrix = table.convertDataToIdxMatrices(
                                                 dataJSONFile, dataStats)
 
@@ -330,7 +333,7 @@ def testAccuracyComputation():
 
 
 if __name__ == "__main__":
-  # testLabelsMat()
+  #testLabelsMat()
   # testEmbeddings()
   # testHiddenLayer()
   #testSentToIdxMat()
@@ -347,9 +350,9 @@ if __name__ == "__main__":
    #testParamsBackPropUpdate()
    #testPredictFunc()
    #testSNLIExample()
-   #testConvertToIdxMatrices()
+   testConvertToIdxMatrices()
    #testConvertIdxMatToIdxTensor()
    #testTrainFunctionality()
    #testExtractParamsAndSaveModel()
    #testSaveLoadModel()
-   testAccuracyComputation()
+   #testAccuracyComputation()

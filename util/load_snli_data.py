@@ -43,7 +43,38 @@ def load_data(path):
     return examples, None
 
 
+def loadExampleSentences(path):
+    with open(path, 'r') as f:
+        examples = []
+        for line in f:
+            loaded_example = json.loads(line)
+            if loaded_example["gold_label"] not in LABEL_MAP:
+                continue
+
+            premiseTokens, _ = convert_binary_bracketing(loaded_example["sentence1_binary_parse"])
+            hypothesisTokens, _ = convert_binary_bracketing(loaded_example["sentence2_binary_parse"])
+            example = [premiseTokens, hypothesisTokens]
+            examples.append(example)
+    print len(examples), "lines."
+    return examples
+
+
+def loadExampleLabels(path):
+    print "Loading gold labels from {0}".format(path)
+    with open(path, 'r') as f:
+        examplesLabels = []
+        for line in f:
+            loaded_example = json.loads(line)
+            if loaded_example["gold_label"] not in LABEL_MAP:
+                continue
+
+            label = loaded_example["gold_label"]
+            examplesLabels.append(label)
+    return examplesLabels
+
+
 if __name__ == "__main__":
+    pass
     # Demo:
-    examples = load_data('snli-data/snli_1.0_dev.jsonl')
-    print examples[0]
+    #examples = load_data('snli-data/snli_1.0_dev.jsonl')
+    #print examples[0]

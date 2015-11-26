@@ -1,6 +1,9 @@
 import json
 import numpy as np
 
+from util.load_snli_data import loadExampleSentences
+
+
 class EmbeddingTable(object):
     """
     Reads in data path of word embeddings and
@@ -168,12 +171,11 @@ class EmbeddingTable(object):
         """
         Converts data file to matrix of dim (# maxlength, # numSamples, 1)
         where the last dimension stores the idx of the word embedding.
-        :param dataJSONFile:
+        :param dataJSONFile: File to data with sentences
         :param dataStats:
         :return:
         """
-        with open(dataJSONFile, "r") as sentFile:
-            sentences = json.load(sentFile)["sentences"]
+        sentences = loadExampleSentences(dataJSONFile)
 
         with open(dataStats, "r") as statsFile:
             statsJSON = json.load(statsFile)
@@ -206,12 +208,11 @@ class EmbeddingTable(object):
         Reads in JSON file with SNLI sentences and convert to embedding tensor. Note
         sentences below maxLength are padded with zeros.
 
-        :param dataJSONFile: File with SNLI sentences ('train', 'dev', or 'test')
+        :param dataJSONFile: Path to file with SNLI sentences ('train', 'dev', or 'test')
         :param dataStats: Stats about max sent length/vocab size in data file
         :return:
         """
-        with open(dataJSONFile, "r") as sentFile:
-            sentences = json.load(sentFile)["sentences"]
+        sentences = loadExampleSentences(dataJSONFile)
 
         with open(dataStats, "r") as statsFile:
             statsJSON = json.load(statsFile)

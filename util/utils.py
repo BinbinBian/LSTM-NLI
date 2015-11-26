@@ -7,6 +7,8 @@ import os
 import re
 import sys
 
+from load_snli_data import loadExampleLabels
+
 """Add root directory path"""
 root_dir = os.path.dirname(os.path.dirname(__file__))
 sys.path.append(root_dir)
@@ -148,17 +150,16 @@ def computeDataStatistics(dataSet="dev"):
            minSenLengthHypothesis, maxSenLengthHypothesis
 
 
-def convertLabelsToMat(labelFile):
+def convertLabelsToMat(dataFile):
     """
     Converts json file of labels to a (numSamples, 3) matrix with a 1 in the column
     corresponding to the label.
-    :param labelFile: Path to JSON labels File
+    :param dataFile: Path to JSON data file
     :return: numpy matrix corresponding to the labels
     """
     labelsList = ["entailment", "contradiction", "neutral"]
-    with open(labelFile, "r") as f:
-        labelsObj = json.load(f)
-        labels = labelsObj["labels"]
+    with open(dataFile, "r") as f:
+        labels = loadExampleLabels(dataFile)
 
         labelsMat = np.zeros((len(labels), 3), dtype=np.float32)
         for idx, label in enumerate(labels):
