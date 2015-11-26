@@ -84,7 +84,7 @@ class EmbeddingTable(object):
     def getEmbeddingFromWord(self, word):
         """
         Return embedding vector for given word. If embedding not found,
-        return a vector of random values.
+        return a vector of uniformly initialized random values.
         """
         # TODO: Is that proper way to handle unknown words?
         try:
@@ -92,7 +92,7 @@ class EmbeddingTable(object):
             return self.embeddings[idx]
         except (KeyError, TypeError):
             print "Word not found in embedding matrix. Returning random vector..."
-            return np.random.randn(self.dimEmbeddings)
+            return np.random.uniform(-0.05, 0.05, self.dimEmbeddings)
 
 
     def getEmbeddingfromIdx(self, idx):
@@ -105,7 +105,8 @@ class EmbeddingTable(object):
             embedding = self.embeddings[idx]
             return embedding
         except:
-            return np.random.randn(self.dimEmbeddings)
+            # Uniform initialization if embedding idx not found
+            return np.random.uniform(-0.05, 0.05, self.dimEmbeddings)
 
 
     def convertSentToIdxMatrix(self, sentence):

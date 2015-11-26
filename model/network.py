@@ -57,6 +57,7 @@ class Network(object):
 
         self.buildModel()
 
+
     def printNetworkParams(self):
         """Print all params of network.
         """
@@ -111,6 +112,22 @@ class Network(object):
                 self.hiddenLayerPremise.params[paramName].set_value(paramVal)
 
 
+    def convertIdxToLabel(self, labelIdx):
+        """
+        Converts an idx to a label from our classification categories.
+        :param idx:
+        :return: List of all label categories
+        """
+        categories = ["entailment", "contradiction", "neutral"]
+        labelCategories = []
+        for idx in labelIdx:
+            labelCategories.append(categories[idx])
+
+        print "Labels of examples: {0}".format(labelCategories)
+
+        return labelCategories
+
+
     @staticmethod
     def getMinibatchesIdx(numDataPoints, minibatchSize, shuffle=False):
         """
@@ -149,9 +166,10 @@ class Network(object):
         inputHypothesis = T.ftensor3("inputHypothesis")
         predictFn = self.predictFunc(inputPremise, inputHypothesis)
 
-        miniBatches = Network.getMinibatchesIdx(len(dataTarget), 10)
+        # Arbitary batch size set
+        minibatches = Network.getMinibatchesIdx(len(dataTarget), 10)
 
-        for _, minibatch in miniBatches:
+        for _, minibatch in minibatches:
             batchPremise = dataPremiseMat[0:self.numTimestepsPremise, minibatch, :]
             batchPremiseTensor = self.embeddingTable.convertIdxMatToIdxTensor(batchPremise)
             batchHypothesis = dataHypothesisMat[0:self.numTimestepsHypothesis, minibatch, :]
@@ -159,8 +177,10 @@ class Network(object):
 
             prediction = predictFn(batchPremiseTensor, batchHypothesisTensor)
             batchLabels = dataTarget[minibatch]
+            batchGoldIdx = [ex.argmax(axis=0) for ex in batchLabels]
 
-            correctPredictions += (prediction == batchLabels).sum()
+            correctPredictions += (np.array(prediction) ==
+                                   np.array(batchGoldIdx)).sum()
 
         return correctPredictions/numExamples
 

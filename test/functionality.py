@@ -302,16 +302,31 @@ def testSaveLoadModel():
                       dimInput=50, embedData=embedData, trainData=trainData,
                     trainLabels=trainLabels, trainDataStats=trainDatStats,
                     valData=valData, valDataStats=valDataStats, valLabels=valLabels)
-    #network.buildModel()
     network.train()
 
     network2 = Network(numTimestepsPremise=57, numTimestepsHypothesis=30,
                       dimInput=50, embedData=embedData, trainData=trainData,
                     trainLabels=trainLabels, trainDataStats=trainDatStats,
                     valData=valData, valDataStats=valDataStats, valLabels=valLabels)
-    #network2.buildModel()
     network2.loadModel("basicLSTM_batch=5,epoch=1,learnR=0.1.npz")
     network2.printNetworkParams()
+
+
+def testAccuracyComputation():
+    network = Network(numTimestepsPremise=57, numTimestepsHypothesis=30,
+                      dimInput=50, embedData=embedData, trainData=trainData,
+                    trainLabels=trainLabels, trainDataStats=trainDatStats,
+                    valData=valData, valDataStats=valDataStats, valLabels=valLabels)
+    valPremiseIdxMat, valHypothesisIdxMat = network.embeddingTable.convertDataToIdxMatrices(
+                                network.valData, network.valDataStats)
+    valGoldLabel = convertLabelsToMat(network.valLabels)
+
+    accuracy = network.computeAccuracy(valPremiseIdxMat,
+                                       valHypothesisIdxMat, valGoldLabel)
+
+    print "Number of examples: {0}".format(len(valGoldLabel))
+
+    print "Accuracy computed: {0}".format(accuracy)
 
 
 if __name__ == "__main__":
@@ -336,4 +351,5 @@ if __name__ == "__main__":
    #testConvertIdxMatToIdxTensor()
    #testTrainFunctionality()
    #testExtractParamsAndSaveModel()
-   testSaveLoadModel()
+   #testSaveLoadModel()
+   testAccuracyComputation()
