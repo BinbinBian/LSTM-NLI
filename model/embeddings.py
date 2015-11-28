@@ -65,7 +65,7 @@ class EmbeddingTable(object):
                 wordVocab.append(wordContents[0])
                 wordVectors.append(wordContents[1:])
 
-        wordVectors = np.array(wordVectors, dtype=np.float64)
+        wordVectors = np.array(wordVectors, dtype=np.float32)
         wordToIndex = dict(zip(wordVocab, range(len(wordVocab))))
         indexToWord = {idx: word for word, idx in wordToIndex.iteritems()}
 
@@ -221,8 +221,10 @@ class EmbeddingTable(object):
 
 
         numSent = len(sentences)
-        premiseTensor = np.zeros((maxSentLengthPremise, numSent, self.dimEmbeddings))
-        hypothesisTensor = np.zeros((maxSentLengthHypothesis, numSent, self.dimEmbeddings))
+        premiseTensor = np.zeros((maxSentLengthPremise, numSent, self.dimEmbeddings),
+                                    dtype=np.float32)
+        hypothesisTensor = np.zeros((maxSentLengthHypothesis, numSent,
+                                     self.dimEmbeddings), dtype=np.float32)
 
         for idx, (premiseSent, hypothesisSent) in enumerate(sentences):
             premiseIdxMat = self.convertSentListToIdxMatrix(premiseSent)

@@ -10,7 +10,7 @@ SEED = 100
 np.random.seed(SEED)
 
 class HiddenLayer(object):
-    def __init__(self, dimInput, dimHiddenState, layerName, numCategories=3):
+    def __init__(self, dimInput, dimHiddenState, dimEmbedding, layerName, numCategories=3):
         """
         :param inputMat: Matrix of input vectors to use for unraveling
                          hidden layer.
@@ -20,9 +20,11 @@ class HiddenLayer(object):
         """
         # Dictionary of model parameters.
         self.params = {}
+
         self.layerName = layerName
         self.inputDim = dimInput
         self.dimHidden = dimHiddenState
+        self.dimEmbedding = dimEmbedding
 
         # Represents number of categories used for classification
         self.numLabels = numCategories
@@ -33,7 +35,13 @@ class HiddenLayer(object):
 
         # TODO: what to use for initializing parameters (random?)
 
-        # TODO: include parameters for projecting from input word vector dimensions to dimInput
+        # Parameters for projecting from embedding size to input dimension
+        self.b_toInput = theano.shared(np.random.randn(1, dimInput).astype(
+                    np.float32), name="biasToInput_"+layerName,
+                    broadcastable=(True, False))
+        self.W_toInput = theano.shared(np.random.randn(dimInput,
+                                            dimEmbedding).astype(np.float32),
+                                            name="weightsXtoInput_"+layerName)
 
         # Parameters for forget gate
         self.b_f = theano.shared(np.random.randn(1, dimHiddenState).astype(
@@ -92,6 +100,9 @@ class HiddenLayer(object):
         self.finalHiddenVal = None  # Stores final hidden state from scan in forwardPass
 
         # Add shared vars to params dict
+        self.params["biasToInput_"+layerName] = self.b_toInput
+        self.params["weightsToInput_"+layerName] = self.W_toInput
+
         self.params["biasI_"+layerName] = self.b_i
         self.params["weightsXi_"+layerName] = self.W_i
         self.params["weightsHi_"+layerName] = self.U_i
@@ -174,6 +185,8 @@ class HiddenLayer(object):
         :param prevHiddenState: Vec of hidden state at previous time step.
         :param prevCellState: Vec of cell state at previous time step.
         """
+        # First project from dimEmbedding to dimInput
+        input = T.dot(input, self.W_toInput.T) + self.b_toInput
 
         forgetGate = T.nnet.sigmoid(T.dot(input, self.W_f.T) + T.dot(prevHiddenState, self.U_f.T)
                                     + self.b_f) # Should be (numSamples, dimHidden)

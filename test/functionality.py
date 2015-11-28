@@ -126,41 +126,44 @@ def testCostFuncPipeline():
     x = T.dtensor3("testX")
     yTarget = T.dmatrix("testyTarget")
 
-    xNP = np.array([[[0.5, 0.6]], [[0.3, 0.8]]], dtype = np.float64)
-    yTargetNP = np.array([[0., 1., 0.]], dtype=np.float64)
+    xNP = np.array([[[0.5, 0.6]], [[0.3, 0.8]]], dtype = np.float32)
+    yTargetNP = np.array([[0., 1., 0.]], dtype=np.float32)
     cost, costFunc = hLayer.costFunc(x, yTarget, numTimesteps=2)
     print "Cost: ", costFunc(xNP, yTargetNP)
 
-    xNP = np.array([[[0.5, 0.6]]], dtype = np.float64)
-    yTargetNP = np.array([[0., 1., 0.]], dtype=np.float64)
+    xNP = np.array([[[0.5, 0.6]]], dtype=np.float32)
+    yTargetNP = np.array([[0., 1., 0.]], dtype=np.float32)
     costFunc = hLayer.costFunc(x, yTarget, numTimesteps=1)
     print "Cost: ", costFunc(xNP, yTargetNP)
 
-    xNP = np.array([[[0.5, 0.6]], [[0.3, 0.8]]], dtype = np.float64)
-    yTargetNP = np.array([[1., 1., 0.]], dtype=np.float64)
+    xNP = np.array([[[0.5, 0.6]], [[0.3, 0.8]]], dtype = np.float32)
+    yTargetNP = np.array([[1., 1., 0.]], dtype=np.float32)
     cost, costFunc = hLayer.costFunc(x, yTarget, numTimesteps=2)
     print "Cost: ", costFunc(xNP, yTargetNP)
 
 
 def testGradComputation():
-    hLayer = HiddenLayer(dimInput=2, dimHiddenState=2, layerName="testHidden")
-    x = T.dtensor3("testX")
-    yTarget = T.dmatrix("testyTarget")
+    hLayer = HiddenLayer(dimInput=2, dimHiddenState=2, dimEmbedding=2,
+                         layerName="testHidden")
+    x = T.ftensor3("testX")
+    yTarget = T.fmatrix("testyTarget")
 
-    xNP = np.array([[[0.5, 0.6]], [[0.3, 0.8]]], dtype = np.float64)
-    yTargetNP = np.array([[0., 1., 0.]], dtype=np.float64)
-    cost, costFunc = hLayer.costFunc(x, yTarget, numTimesteps=2)
-    grads, gradFunc = hLayer.computeGrads(x, yTarget, cost)
-    print "Grads: ", gradFunc(xNP, yTargetNP)
+    xNP = np.array([[[0.5, 0.6]], [[0.3, 0.8]]], dtype=np.float32)
+    yTargetNP = np.array([[0., 1., 0.]], dtype=np.float32)
+    cost = hLayer.costFunc(x, yTarget, numTimesteps=2)
+    grads = hLayer.computeGrads(x, yTarget, cost)
+    costGrad = theano.function([x, yTarget], grads, name='costGradients')
+    print "Grads: ", costGrad(xNP, yTargetNP)
 
 
 def testSGD():
-    hLayer = HiddenLayer(dimInput=2, dimHiddenState=2, layerName="testHidden")
+    hLayer = HiddenLayer(dimInput=2, dimHiddenState=2, dimEmbedding=2,
+                         layerName="testHidden")
     x = T.dtensor3("testX")
     yTarget = T.dmatrix("testyTarget")
 
-    xNP = np.array([[[0.5, 0.6]], [[0.3, 0.8]]], dtype = np.float64)
-    yTargetNP = np.array([[0., 1., 0.]], dtype=np.float64)
+    xNP = np.array([[[0.5, 0.6]], [[0.3, 0.8]]], dtype = np.float32)
+    yTargetNP = np.array([[0., 1., 0.]], dtype=np.float32)
     cost, costFunc = hLayer.costFunc(x, yTarget, numTimesteps=2)
     grads, gradFunc = hLayer.computeGrads(x, yTarget, cost)
     gradsVals = gradFunc(xNP, yTargetNP)
@@ -181,7 +184,6 @@ def testSGD():
 
 def testNetworkSetup():
     network = Network()
-    network.buildModel()
     network.hiddenLayerHypothesis.params["biasO_premiseLayer"] += T.as_tensor_variable(np.array([1, 2]))
     network.hiddenLayerPremise.printParams()
     network.hiddenLayerHypothesis.printParams()
@@ -192,7 +194,6 @@ def testParamsBackPropUpdate():
     Test to ensure that the parameters of premise are updated after backprop.
     """
     network = Network()
-    network.buildModel()
     network.train()
 
 
@@ -201,7 +202,6 @@ def testPredictFunc():
     Test the network predict function
     """
     network = Network()
-    network.buildModel()
 
     symPremise = T.dtensor3("inputPremise")
     symHypothesis = T.dtensor3("inputHypothesis")
@@ -247,22 +247,23 @@ def testSNLIExample():
     """
     start = time.time()
     table = EmbeddingTable(dataPath+"glove.6B.50d.txt.gz")
-    dataStats= "/Users/mihaileric/Documents/Research/LSTM-NLI/test_dataStats.json"
-    dataJSONFile= "/Users/mihaileric/Documents/Research/LSTM-NLI/test_sentences.json"
+    dataStats= "/Users/mihaileric/Documents/Research/LSTM-NLI/data/" \
+               "test_dataStats.json"
+    dataJSONFile= "/Users/mihaileric/Documents/Research/LSTM-NLI/data/" \
+                  "snli_1.0_test.jsonl"
     premiseTensor, hypothesisTensor = table.convertDataToEmbeddingTensors(
                                                 dataJSONFile, dataStats)
 
-    symPremise = T.dtensor3("inputPremise")
-    symHypothesis = T.dtensor3("inputHypothesis")
+    symPremise = T.ftensor3("inputPremise")
+    symHypothesis = T.ftensor3("inputHypothesis")
 
     premiseSent = premiseTensor[:, 0:3, :]
     hypothesisSent = hypothesisTensor[:, 0:3, :]
 
-    #print firstPremiseEx.shape
-    #print firstHypothesisEx.shape
-
-    network = Network(numTimestepsPremise=57, numTimestepsHypothesis=30, dimInput=50)
-    network.buildModel()
+    network = Network(numTimestepsPremise=57, numTimestepsHypothesis=30,
+                      dimInput=10, embedData="/Users/mihaileric/Documents/Research/"
+                                             "LSTM-NLI/data/glove.6B.50d.txt.gz")
+    network.printNetworkParams()
 
     predictFunc = network.predictFunc(symPremise, symHypothesis)
     labels = network.predict(premiseSent, hypothesisSent, predictFunc)
@@ -274,19 +275,19 @@ def testSNLIExample():
 
 
 embedData = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/glove.6B.50d.txt.gz"
-trainData = "/Users/mihaileric/Documents/Research/LSTM-NLI/train_sentences.json"
-trainDatStats = "/Users/mihaileric/Documents/Research/LSTM-NLI/train_dataStats.json"
+trainData = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/snli_1.0_train.jsonl"
+trainDatStats = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/train_dataStats.json"
 trainLabels = "train_labels.json"
-valData = "/Users/mihaileric/Documents/Research/LSTM-NLI/dev_sentences.json"
-valDataStats = "/Users/mihaileric/Documents/Research/LSTM-NLI/dev_dataStats.json"
+valData = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/snli_1.0_dev.jsonl"
+valDataStats = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/dev_dataStats.json"
 valLabels = "/Users/mihaileric/Documents/Research/LSTM-NLI/dev_labels.json"
 
 def testTrainFunctionality():
     network = Network(numTimestepsPremise=57, numTimestepsHypothesis=30,
-                      dimInput=50, embedData=embedData, trainData=trainData,
-                    trainLabels=trainLabels, trainDataStats=trainDatStats,
-                    valData=valData, valDataStats=valDataStats, valLabels=valLabels)
-    network.buildModel()
+                      dimInput=10, embedData=embedData, trainData=trainData,
+                     trainDataStats=trainDatStats,
+                    valData=valData, valDataStats=valDataStats)
+    network.printNetworkParams()
     network.train()
 
 
@@ -295,7 +296,6 @@ def testExtractParamsAndSaveModel():
                       dimInput=50, embedData=embedData, trainData=trainData,
                     trainLabels=trainLabels, trainDataStats=trainDatStats,
                     valData=valData, valDataStats=valDataStats, valLabels=valLabels)
-    network.buildModel()
     network.extractParams()
     network.saveModel("savedParamsFile.npz")
 
@@ -303,8 +303,8 @@ def testExtractParamsAndSaveModel():
 def testSaveLoadModel():
     network = Network(numTimestepsPremise=57, numTimestepsHypothesis=30,
                       dimInput=50, embedData=embedData, trainData=trainData,
-                    trainLabels=trainLabels, trainDataStats=trainDatStats,
-                    valData=valData, valDataStats=valDataStats, valLabels=valLabels)
+                    trainDataStats=trainDatStats,
+                    valData=valData, valDataStats=valDataStats)
     network.train()
 
     network2 = Network(numTimestepsPremise=57, numTimestepsHypothesis=30,
@@ -350,9 +350,9 @@ if __name__ == "__main__":
    #testParamsBackPropUpdate()
    #testPredictFunc()
    #testSNLIExample()
-   testConvertToIdxMatrices()
+   #testConvertToIdxMatrices()
    #testConvertIdxMatToIdxTensor()
-   #testTrainFunctionality()
+   testTrainFunctionality()
    #testExtractParamsAndSaveModel()
    #testSaveLoadModel()
    #testAccuracyComputation()

@@ -18,8 +18,7 @@ class Network(object):
     def __init__(self, numTimestepsPremise=1, numTimestepsHypothesis=1,
                  dimHidden=2, dimInput=2, embedData=None, trainData=None,
                  trainDataStats=None, valData=None, valDataStats=None,
-                 testData=None, testDataStats=None,
-                 trainLabels=None, valLabels=None, testLabels=None):
+                 testData=None, testDataStats=None):
         """
         :param numTimesteps: Number of timesteps to unroll network for.
         :param dataPath: Path to file with precomputed word embeddings
@@ -35,16 +34,17 @@ class Network(object):
         # Paths to all data files
         self.trainData = trainData
         self.trainDataStats = trainDataStats
-        self.trainLabels = trainLabels
         self.valData = valData
         self.valDataStats = valDataStats
-        self.valLabels = valLabels
         self.testData = testData
         self.testDataStats = testDataStats
-        self.testLabels = testLabels
 
+        # Dimension of word embeddings at input
+        self.dimEmbedding = self.embeddingTable.dimEmbeddings
 
+        # Desired dimension of input to hidden layer
         self.dimInput = dimInput
+
         self.dimHidden = dimHidden
         self.inputMat = None # To store matrix of data input
 
@@ -59,14 +59,16 @@ class Network(object):
 
 
     def printNetworkParams(self):
-        """Print all params of network.
+        """
+        Print all params of network.
         """
         self.hiddenLayerPremise.printParams()
         self.hiddenLayerHypothesis.printParams()
 
 
     def extractParams(self):
-        """ Extracts the numerical value of the model params and
+        """
+        Extracts the numerical value of the model params and
         stored in model variable
         """
         for paramName, paramVar in self.hiddenLayerHypothesis.params.iteritems():
@@ -74,7 +76,8 @@ class Network(object):
 
 
     def saveModel(self, modelFileName):
-        """ Saves the parameters of the model to disk.
+        """
+        Saves the parameters of the model to disk.
         """
         with open(modelFileName, 'w') as f:
             np.savez(f, **self.numericalParams)
@@ -189,11 +192,16 @@ class Network(object):
         Handles building of model, including initializing necessary parameters, defining
         loss functions, etc.
         """
-        self.hiddenLayerPremise = HiddenLayer(self.dimInput, self.dimHidden, "premiseLayer")
-        del self.hiddenLayerPremise.params["weightsCat_premiseLayer"] # Need to make sure not differentiating with respect to Wcat of premise
-        del self.hiddenLayerPremise.params["biasCat_premiseLayer"] # May want to find cleaner way to deal with this later
+        self.hiddenLayerPremise = HiddenLayer(self.dimInput, self.dimHidden,
+                                              self.dimEmbedding, "premiseLayer")
 
-        self.hiddenLayerHypothesis = HiddenLayer(self.dimInput, self.dimHidden, "hypothesisLayer")
+        # Need to make sure not differentiating with respect to Wcat of premise
+        # May want to find cleaner way to deal with this later
+        del self.hiddenLayerPremise.params["weightsCat_premiseLayer"]
+        del self.hiddenLayerPremise.params["biasCat_premiseLayer"]
+
+        self.hiddenLayerHypothesis = HiddenLayer(self.dimInput, self.dimHidden,
+                                        self.dimEmbedding, "hypothesisLayer")
 
 
     def trainFunc(self, inputPremise, inputHypothesis, yTarget, learnRate):
@@ -226,7 +234,7 @@ class Network(object):
 
         valPremiseIdxMat, valHypothesisIdxMat = self.embeddingTable.convertDataToIdxMatrices(
                                 self.valData, self.valDataStats)
-        valGoldLabel = convertLabelsToMat(self.valLabels)
+        valGoldLabel = convertLabelsToMat(self.valData)
 
 
         inputPremise = T.ftensor3(name="inputPremise")
@@ -234,7 +242,7 @@ class Network(object):
         yTarget = T.fmatrix(name="yTarget")
         learnRate = T.scalar(name="learnRate", dtype='float32')
 
-        learnRateVal = 0.1
+        learnRateVal = 0.6
 
         self.hiddenLayerHypothesis.appendParams(self.hiddenLayerPremise.params)
         trainNetFunc = self.trainFunc(inputPremise, inputHypothesis, yTarget, learnRate)
@@ -257,12 +265,12 @@ class Network(object):
                 batchLabels = valGoldLabel[minibatch]
 
 
-                self.hiddenLayerPremise.printParams()
+                self.hiddenLayerHypothesis.printParams()
                 gradOut = trainNetFunc(batchPremiseTensor,
                                        batchHypothesisTensor, batchLabels, learnRateVal)
                 newPremiseGrads = self.hiddenLayerHypothesis.getPremiseGrads()
                 self.hiddenLayerPremise.updateParams(newPremiseGrads)
-                self.hiddenLayerPremise.printParams()
+                self.hiddenLayerHypothesis.printParams()
 
                 self.hiddenLayerHypothesis.appendParams(self.hiddenLayerPremise.params)
 
