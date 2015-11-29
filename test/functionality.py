@@ -281,25 +281,26 @@ def testSNLIExample():
 
 embedData = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/glove.6B.50d.txt.gz"
 trainData = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/snli_1.0_train.jsonl"
-trainDatStats = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/train_dataStats.json"
+trainDataStats = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/train_dataStats.json"
 trainLabels = "train_labels.json"
 valData = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/snli_1.0_dev.jsonl"
 valDataStats = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/dev_dataStats.json"
 valLabels = "/Users/mihaileric/Documents/Research/LSTM-NLI/dev_labels.json"
+testData = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/snli_1.0_test.jsonl"
+testDataStats = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/test_dataStats.json"
+logPath = "/Users/mihaileric/Documents/Research/LSTM-NLI/log/runOutput.txt"
 
 def testTrainFunctionality():
-    network = Network(numTimestepsPremise=57, numTimestepsHypothesis=30,
-                      dimInput=10, embedData=embedData, trainData=trainData,
-                     trainDataStats=trainDatStats,
-                    valData=valData, valDataStats=valDataStats)
+    network = Network(embedData, trainData, trainDataStats, valData, valDataStats, testData,
+                testDataStats, logPath)
     network.printNetworkParams()
-    network.train(numEpochs=3, batchSize=64)
+    network.train(numEpochs=3, batchSize=64, learnRateVal=0.15)
 
 
 def testExtractParamsAndSaveModel():
     network = Network(numTimestepsPremise=57, numTimestepsHypothesis=30,
                       dimInput=50, embedData=embedData, trainData=trainData,
-                    trainLabels=trainLabels, trainDataStats=trainDatStats,
+                    trainLabels=trainLabels, trainDataStats=trainDataStats,
                     valData=valData, valDataStats=valDataStats, valLabels=valLabels)
     network.extractParams()
     network.saveModel("savedParamsFile.npz")
@@ -308,13 +309,13 @@ def testExtractParamsAndSaveModel():
 def testSaveLoadModel():
     network = Network(numTimestepsPremise=57, numTimestepsHypothesis=30,
                       dimInput=50, embedData=embedData, trainData=trainData,
-                    trainDataStats=trainDatStats,
+                    trainDataStats=trainDataStats,
                     valData=valData, valDataStats=valDataStats)
     network.train()
 
     network2 = Network(numTimestepsPremise=57, numTimestepsHypothesis=30,
                       dimInput=50, embedData=embedData, trainData=trainData,
-                    trainLabels=trainLabels, trainDataStats=trainDatStats,
+                    trainLabels=trainLabels, trainDataStats=trainDataStats,
                     valData=valData, valDataStats=valDataStats, valLabels=valLabels)
     network2.loadModel("basicLSTM_batch=5,epoch=1,learnR=0.1.npz")
     network2.printNetworkParams()
@@ -323,7 +324,7 @@ def testSaveLoadModel():
 def testAccuracyComputation():
     network = Network(numTimestepsPremise=57, numTimestepsHypothesis=30,
                       dimInput=50, embedData=embedData, trainData=trainData,
-                    trainLabels=trainLabels, trainDataStats=trainDatStats,
+                    trainLabels=trainLabels, trainDataStats=trainDataStats,
                     valData=valData, valDataStats=valDataStats, valLabels=valLabels)
     valPremiseIdxMat, valHypothesisIdxMat = network.embeddingTable.convertDataToIdxMatrices(
                                 network.valData, network.valDataStats)

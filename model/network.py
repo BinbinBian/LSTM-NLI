@@ -16,14 +16,17 @@ from util.afs_safe_logger import Logger
 from util.utils import convertLabelsToMat
 
 
+# Set random seed for deterministic runs
+SEED = 100
+np.random.seed(SEED)
+
 class Network(object):
     """
     Represents entire network.
     """
-    def __init__(self, numTimestepsPremise=1, numTimestepsHypothesis=1,
-                 dimHidden=2, dimInput=2, embedData=None, trainData=None,
-                 trainDataStats=None, valData=None, valDataStats=None,
-                 testData=None, testDataStats=None):
+    def __init__(self, embedData, trainData, trainDataStats, valData, valDataStats,
+                 testData, testDataStats, logPath, dimHidden=2,
+                 dimInput=2, numTimestepsPremise=1, numTimestepsHypothesis=1):
         """
         :param numTimesteps: Number of timesteps to unroll network for.
         :param dataPath: Path to file with precomputed word embeddings
@@ -43,6 +46,7 @@ class Network(object):
         self.valDataStats = valDataStats
         self.testData = testData
         self.testDataStats = testDataStats
+        self.logger = Logger(log_path=logPath)
 
         # Dimension of word embeddings at input
         self.dimEmbedding = self.embeddingTable.dimEmbeddings
@@ -51,7 +55,8 @@ class Network(object):
         self.dimInput = dimInput
 
         self.dimHidden = dimHidden
-        self.inputMat = None # To store matrix of data input
+        # To store matrix of data input
+        self.inputMat = None
 
         self.premiseLSTMName = "premiseLayer"
         self.hypothesisLSTMName = "hypothesisLayer"
@@ -67,8 +72,13 @@ class Network(object):
         """
         Print all params of network.
         """
-        self.hiddenLayerPremise.printParams()
-        self.hiddenLayerHypothesis.printParams()
+        for layer in [self.hiddenLayerPremise, self.hiddenLayerHypothesis]:
+            self.logger.Log("Current parameter values for %s" %(layer.layerName))
+            self.logger.Log("-" * 50)
+            for pName, pValue in layer.params.iteritems():
+                self.logger.Log(pName+" : "+str(np.asarray(pValue.eval())))
+
+            self.logger.Log("-" * 50)
 
 
     def extractParams(self):
@@ -131,7 +141,7 @@ class Network(object):
         for idx in labelIdx:
             labelCategories.append(categories[idx])
 
-        print "Labels of examples: {0}".format(labelCategories)
+        self.logger.Log("Labels of examples: {0}".format(labelCategories))
 
         return labelCategories
 
@@ -230,7 +240,7 @@ class Network(object):
         return trainFn, costFn, gradsFn
 
 
-    def train(self, numEpochs=1, batchSize=5):
+    def train(self, numEpochs=1, batchSize=5, learnRateVal=0.1):
         """
         Takes care of training model, including propagation of errors and updating of
         parameters.
@@ -254,13 +264,14 @@ class Network(object):
                                         inputHypothesis, yTarget, learnRate)
 
         totalExamples = 0
-        learnRateVal = 0.1
 
         startTime = time.time()
 
         # Training
+        self.logger.Log("Starting training with {0} epochs, {1} batchSize, and"
+                " {2} sgd learning rate".format(numEpochs, batchSize, learnRateVal))
         for epoch in xrange(numEpochs):
-            print "Epoch number: %d" %(epoch)
+            self.logger.Log("Epoch number: %d" %(epoch))
 
             minibatches = Network.getMinibatchesIdx(len(valGoldLabel), batchSize)
             numExamples = 0
@@ -268,7 +279,7 @@ class Network(object):
                 numExamples += len(minibatch)
                 totalExamples += len(minibatch)
 
-                print "Processed {0} examples".format(str(numExamples))
+                self.logger.Log("Processed {0} examples".format(str(numExamples)))
 
                 batchPremise = valPremiseIdxMat[0:self.numTimestepsPremise, minibatch, :]
                 batchPremiseTensor = self.embeddingTable.convertIdxMatToIdxTensor(batchPremise)
@@ -285,24 +296,26 @@ class Network(object):
                 self.hiddenLayerPremise.updateParams(newPremiseGrads)
                 #self.hiddenLayerHypothesis.printParams()
 
+                # Note '15' below is completely arbitrary
                 if numExamples%(batchSize * 15) == 0:
                     valAccuracy = self.computeAccuracy(valPremiseIdxMat,
                                     valHypothesisIdxMat, valGoldLabel)
-                    print "Current validation accuracy after {0} examples: {1}".\
-                                            format(totalExamples, valAccuracy)
+                    self.logger.Log("Current validation accuracy after {0} examples: {1}".\
+                                            format(totalExamples, valAccuracy))
 
 
                 self.hiddenLayerHypothesis.appendParams(self.hiddenLayerPremise.params)
 
-        print "Training complete! Total training time: {0}".format(time.time() - startTime)
+        self.logger.Log("Training complete! Total training time: {0}".format
+                    (time.time() - startTime))
 
         # Save model to disk
-        print "Saving model..."
+        self.logger.Log("Saving model...")
         self.extractParams()
         configString = "batch={0},epoch={1},learnR={2}".format(str(batchSize),
                                             str(numEpochs), str(learnRateVal))
         self.saveModel("basicLSTM_"+configString+".npz")
-        print "Model saved!"
+        self.logger.Log("Model saved!")
 
         # Train Accuracy
         # trainAccuracy = self.computeAccuracy(trainPremiseIdxMat,
@@ -312,7 +325,7 @@ class Network(object):
         # Val Accuracy
         valAccuracy = self.computeAccuracy(valPremiseIdxMat,
                                     valHypothesisIdxMat, valGoldLabel)
-        print "Final validation accuracy: {0}".format(valAccuracy)
+        self.logger.Log("Final validation accuracy: {0}".format(valAccuracy))
 
 
     def predictFunc(self, symPremise, symHypothesis):
@@ -345,7 +358,6 @@ class Network(object):
         """
         categories = ["entailment", "contradiction", "neutral"]
         labelIdx = predictFunc(premiseSent, hypothesisSent)
-        #print "label idx: ", labelIdx
         labelCategories = []
         for idx in labelIdx:
             labelCategories.append(categories[idx])

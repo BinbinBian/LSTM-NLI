@@ -11,6 +11,9 @@ from util.afs_safe_logger import Logger
 SEED = 100
 np.random.seed(SEED)
 
+logger = Logger(log_path="/Users/mihaileric/Documents/Research/LSTM-NLI/log/"
+                         "experimentLog.txt")
+
 class HiddenLayer(object):
     def __init__(self, dimInput, dimHiddenState, dimEmbedding, layerName, numCategories=3):
         """
@@ -155,18 +158,6 @@ class HiddenLayer(object):
         """
         for paramName, newValue in paramUpdates:
             self.params[paramName] = newValue
-
-
-    def printParams(self):
-        """
-        Prints current parameters of model for debugging purposes.
-        """
-        print "Current parameter values for %s" %(self.layerName)
-        print "-" * 50
-        for pName, pValue in self.params.iteritems():
-            print pName, " : ", np.asarray(pValue.eval())
-
-        print "-" * 50
 
 
     def setInitialLayerParams(self, hiddenInit, candidateValInit):
