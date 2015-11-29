@@ -4,6 +4,8 @@ import numpy as np
 import theano
 import theano.tensor as T
 
+from util.afs_safe_logger import Logger
+
 
 # Set random seed for deterministic runs
 SEED = 100
@@ -288,28 +290,25 @@ class HiddenLayer(object):
                                      cost, name='LSTM_cost_function')
 
 
-    def computeGrads(self, x, yTarget, cost):
+    def computeGrads(self, inputPremise, inputHypothesis, yTarget, cost):
         """
         Computes gradients for cost function with respect to all parameters.
         :param costFunc:
         :return:
         """
         grads = T.grad(cost, wrt=self.params.values())
-        #costGrad = theano.function([x, yTarget], grads, name='costGradients')
-        return grads #, costGrad
+        gradsFn = theano.function([inputPremise, inputHypothesis, yTarget],
+                                   grads, name='gradsFn')
+        return grads, gradsFn
 
 
     def sgd(self, grads, learnRate):
         """
-        Apply SGD updates to parameters of model.
+        Return SGD updates to parameters of model.
         :return: Function that can be used to compute sgd updates of parameters
         """
         paramUpdate = [(param, param - learnRate*grad) for param, grad in
                        zip(self.params.values(), grads)]
 
         return paramUpdate #theano.function([learnRate], [], updates=paramUpdate, name="sgdParamUpdate")
-
-
-
-
 

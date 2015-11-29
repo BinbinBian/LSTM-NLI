@@ -39,7 +39,7 @@ def load_data(path):
             (example["premise_tokens"], example["premise_transitions"]) = convert_binary_bracketing(loaded_example["sentence1_binary_parse"])
             (example["hypothesis_tokens"], example["hypothesis_transitions"]) = convert_binary_bracketing(loaded_example["sentence2_binary_parse"])
             examples.append(example)
-    print len(examples), "lines."
+    print "Processed {0} examples".format(len(examples))
     return examples, None
 
 
@@ -55,7 +55,7 @@ def loadExampleSentences(path):
             hypothesisTokens, _ = convert_binary_bracketing(loaded_example["sentence2_binary_parse"])
             example = [premiseTokens, hypothesisTokens]
             examples.append(example)
-    print len(examples), "lines."
+    print "Processed {0} examples".format(len(examples))
     return examples
 
 

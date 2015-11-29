@@ -12,8 +12,8 @@ import time
 
 from model.embeddings import EmbeddingTable
 from model.layers import HiddenLayer
+from util.afs_safe_logger import Logger
 from util.utils import convertLabelsToMat
-
 
 
 class Network(object):
@@ -222,11 +222,12 @@ class Network(object):
         cost, costFn = self.hiddenLayerHypothesis.costFunc(inputPremise,
                                     inputHypothesis, yTarget, "hypothesis", 1)
 
-        grads = self.hiddenLayerHypothesis.computeGrads(inputHypothesis, yTarget, cost)
+        grads, gradsFn = self.hiddenLayerHypothesis.computeGrads(inputPremise,
+                                                inputHypothesis, yTarget, cost)
         paramUpdates = self.hiddenLayerHypothesis.sgd(grads, learnRate)
-        trainF = theano.function([inputPremise, inputHypothesis, yTarget, learnRate], updates=paramUpdates, name='trainNet')
+        trainFn = theano.function([inputPremise, inputHypothesis, yTarget, learnRate], updates=paramUpdates, name='trainNet')
 
-        return trainF
+        return trainFn, costFn, gradsFn
 
 
     def train(self, numEpochs=1, batchSize=5):
@@ -249,7 +250,8 @@ class Network(object):
         learnRate = T.scalar(name="learnRate", dtype='float32')
 
         self.hiddenLayerHypothesis.appendParams(self.hiddenLayerPremise.params)
-        trainNetFunc = self.trainFunc(inputPremise, inputHypothesis, yTarget, learnRate)
+        trainNetFunc, costFn, gradsFn = self.trainFunc(inputPremise,
+                                        inputHypothesis, yTarget, learnRate)
 
         totalExamples = 0
         learnRateVal = 0.1
