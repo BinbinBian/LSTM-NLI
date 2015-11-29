@@ -3,12 +3,16 @@
 
 import layers
 import numpy as np
+import os
+# Hacky way to ensure that theano can find NVCC compiler
+os.environ["PATH"] += ":/usr/local/cuda/bin"
 import theano
 import theano.tensor as T
 
 from model.embeddings import EmbeddingTable
 from model.layers import HiddenLayer
 from util.utils import convertLabelsToMat
+
 
 
 class Network(object):
@@ -214,7 +218,8 @@ class Network(object):
         premiseOutputCandidate = self.hiddenLayerPremise.finalCandidateVal
 
         self.hiddenLayerHypothesis.setInitialLayerParams(premiseOutputHidden, premiseOutputCandidate)
-        cost = self.hiddenLayerHypothesis.costFunc(inputHypothesis, yTarget, 1)
+        cost, costFn = self.hiddenLayerHypothesis.costFunc(inputPremise,
+                                    inputHypothesis, yTarget, "hypothesis", 1)
 
         grads = self.hiddenLayerHypothesis.computeGrads(inputHypothesis, yTarget, cost)
         paramUpdates = self.hiddenLayerHypothesis.sgd(grads, learnRate)
@@ -242,10 +247,11 @@ class Network(object):
         yTarget = T.fmatrix(name="yTarget")
         learnRate = T.scalar(name="learnRate", dtype='float32')
 
-        learnRateVal = 0.6
-
         self.hiddenLayerHypothesis.appendParams(self.hiddenLayerPremise.params)
         trainNetFunc = self.trainFunc(inputPremise, inputHypothesis, yTarget, learnRate)
+
+        totalExamples = 0
+        learnRateVal = 0.6
 
         # Training
         for epoch in xrange(numEpochs):
@@ -255,6 +261,8 @@ class Network(object):
             numExamples = 0
             for _, minibatch in minibatches:
                 numExamples += len(minibatch)
+                totalExamples += len(minibatch)
+
                 print "Processed {0} examples".format(str(numExamples))
 
                 batchPremise = valPremiseIdxMat[0:self.numTimestepsPremise, minibatch, :]
@@ -265,12 +273,19 @@ class Network(object):
                 batchLabels = valGoldLabel[minibatch]
 
 
-                self.hiddenLayerHypothesis.printParams()
+                #self.hiddenLayerHypothesis.printParams()
                 gradOut = trainNetFunc(batchPremiseTensor,
                                        batchHypothesisTensor, batchLabels, learnRateVal)
                 newPremiseGrads = self.hiddenLayerHypothesis.getPremiseGrads()
                 self.hiddenLayerPremise.updateParams(newPremiseGrads)
-                self.hiddenLayerHypothesis.printParams()
+                #self.hiddenLayerHypothesis.printParams()
+
+                if numExamples%1000 == 0:
+                    valAccuracy = self.computeAccuracy(valPremiseIdxMat,
+                                    valHypothesisIdxMat, valGoldLabel)
+                    print "Current validation accuracy after {0} examples: {1}".\
+                                            format(totalExamples, valAccuracy)
+
 
                 self.hiddenLayerHypothesis.appendParams(self.hiddenLayerPremise.params)
 
@@ -292,7 +307,7 @@ class Network(object):
         # Val Accuracy
         valAccuracy = self.computeAccuracy(valPremiseIdxMat,
                                     valHypothesisIdxMat, valGoldLabel)
-        print "Validation accuracy: {0}".format(valAccuracy)
+        print "Final validation accuracy: {0}".format(valAccuracy)
 
 
     def predictFunc(self, symPremise, symHypothesis):

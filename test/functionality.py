@@ -3,6 +3,10 @@ of system.
 """
 
 import numpy as np
+import os
+# Hacky way to ensure that theano can find NVCC compiler
+os.environ["PATH"] += ":/usr/local/cuda/bin"
+
 import theano
 import theano.tensor as T
 import time
@@ -13,6 +17,7 @@ from model.network import Network
 from util.utils import convertLabelsToMat
 
 dataPath = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/"
+
 
 
 def testLabelsMat():

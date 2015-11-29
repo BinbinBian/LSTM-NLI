@@ -162,7 +162,7 @@ class HiddenLayer(object):
         print "Current parameter values for %s" %(self.layerName)
         print "-" * 50
         for pName, pValue in self.params.iteritems():
-            print pName, " : ", pValue.eval()
+            print pName, " : ", np.asarray(pValue.eval())
 
         print "-" * 50
 
@@ -268,18 +268,24 @@ class HiddenLayer(object):
         return T.mean(T.eq(T.argmax(yPred, axis=-1), T.argmax(yTarget, axis=-1)))
 
 
-    def costFunc(self, x, yTarget, numTimesteps=1):
+    def costFunc(self, inputPremise, inputHypothesis, yTarget, layer, numTimesteps=1):
         """
         Compute end-to-end cost function for a collection of input data.
+        :param layer: whether we are doing a forward computation in the
+                        premise or hypothesis layer
         :return: Symbolic expression for cost function as well as theano function
                  for computing cost expression.
         """
-        _ = self.forwardRun(x, numTimesteps) # Last parameter is num Samples -- may want to remove that
+        if layer == "premise":
+            _ = self.forwardRun(inputPremise, numTimesteps)
+        elif layer == "hypothesis":
+            _ = self.forwardRun(inputHypothesis, numTimesteps)
         catOutput = self.projectToCategories()
         softmaxOut = self.applySoftmax(catOutput)
         cost = self.computeCrossEntropyCost(softmaxOut, yTarget)
         #theano.printing.pydotprint(cost, outfile="costGraph")
-        return cost #, theano.function([x, yTarget], cost, name='LSTM_cost_function')
+        return cost, theano.function([inputPremise, inputHypothesis, yTarget],
+                                     cost, name='LSTM_cost_function')
 
 
     def computeGrads(self, x, yTarget, cost):
