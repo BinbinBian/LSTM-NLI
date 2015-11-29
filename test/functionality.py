@@ -293,7 +293,7 @@ def testTrainFunctionality():
                      trainDataStats=trainDatStats,
                     valData=valData, valDataStats=valDataStats)
     network.printNetworkParams()
-    network.train()
+    network.train(numEpochs=3, batchSize=64)
 
 
 def testExtractParamsAndSaveModel():

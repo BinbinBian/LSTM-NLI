@@ -8,6 +8,7 @@ import os
 os.environ["PATH"] += ":/usr/local/cuda/bin"
 import theano
 import theano.tensor as T
+import time
 
 from model.embeddings import EmbeddingTable
 from model.layers import HiddenLayer
@@ -251,7 +252,9 @@ class Network(object):
         trainNetFunc = self.trainFunc(inputPremise, inputHypothesis, yTarget, learnRate)
 
         totalExamples = 0
-        learnRateVal = 0.6
+        learnRateVal = 0.1
+
+        startTime = time.time()
 
         # Training
         for epoch in xrange(numEpochs):
@@ -280,7 +283,7 @@ class Network(object):
                 self.hiddenLayerPremise.updateParams(newPremiseGrads)
                 #self.hiddenLayerHypothesis.printParams()
 
-                if numExamples%1000 == 0:
+                if numExamples%(batchSize * 15) == 0:
                     valAccuracy = self.computeAccuracy(valPremiseIdxMat,
                                     valHypothesisIdxMat, valGoldLabel)
                     print "Current validation accuracy after {0} examples: {1}".\
@@ -289,7 +292,7 @@ class Network(object):
 
                 self.hiddenLayerHypothesis.appendParams(self.hiddenLayerPremise.params)
 
-        print "Training complete!"
+        print "Training complete! Total training time: {0}".format(time.time() - startTime)
 
         # Save model to disk
         print "Saving model..."
