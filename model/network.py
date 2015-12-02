@@ -297,7 +297,8 @@ class Network(object):
                 numExamples += len(minibatch)
                 totalExamples += len(minibatch)
 
-                self.logger.Log("Processed {0} examples".format(str(numExamples)))
+                self.logger.Log("Processed {0} examples in current epoch".
+                                format(str(numExamples)))
 
                 batchPremise = valPremiseIdxMat[0:self.numTimestepsPremise, minibatch, :]
                 batchPremiseTensor = self.embeddingTable.convertIdxMatToIdxTensor(batchPremise)
@@ -307,20 +308,22 @@ class Network(object):
                 batchLabels = valGoldLabel[minibatch]
 
 
-                self.printNetworkParams()
+                #self.printNetworkParams()
                 gradOut = forwardProp(batchPremiseTensor,
                                        batchHypothesisTensor, batchLabels)
                 updateNetworkParams(learnRateVal)
                 newPremiseGrads = self.hiddenLayerHypothesis.getPremiseGrads()
                 self.hiddenLayerPremise.updateParams(newPremiseGrads)
-                self.printNetworkParams()
+                #self.printNetworkParams()
 
-                # Note '10' below is completely arbitrary
-                if numExamples%(batchSize * 10) == 0:
+                # Note '200' below is completely arbitrary
+                if totalExamples%(200) == 0:
                     valAccuracy = self.computeAccuracy(valPremiseIdxMat,
                                     valHypothesisIdxMat, valGoldLabel)
                     self.logger.Log("Current validation accuracy after {0} examples: {1}".\
                                             format(totalExamples, valAccuracy))
+                    cost = costFn(batchPremiseTensor, batchHypothesisTensor, batchLabels)
+                    self.logger.Log("Current cost: {0}".format(cost))
 
 
                 self.hiddenLayerHypothesis.appendParams(self.hiddenLayerPremise.params)

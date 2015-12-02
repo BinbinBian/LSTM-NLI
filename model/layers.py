@@ -289,7 +289,7 @@ class HiddenLayer(object):
         """
         grads = T.grad(cost, wrt=self.params.values())
         # Clip grads to specific range to avoid explosion
-       # grads= [T.clip(g, -3., 3.) for g in grads]
+        grads= [T.clip(g, -3., 3.) for g in grads]
 
         gradsFn = theano.function([inputPremise, inputHypothesis, yTarget],
                                    grads, name='gradsFn')
