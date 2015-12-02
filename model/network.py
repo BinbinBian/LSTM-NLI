@@ -183,7 +183,7 @@ class Network(object):
         inputHypothesis = T.ftensor3("inputHypothesis")
         predictFn = self.predictFunc(inputPremise, inputHypothesis)
 
-        # Arbitary batch size set
+        # Arbitrary batch size set
         minibatches = Network.getMinibatchesIdx(len(dataTarget), 10)
 
         for _, minibatch in minibatches:
@@ -219,28 +219,32 @@ class Network(object):
                                         self.dimEmbedding, "hypothesisLayer")
 
 
-    def trainFunc(self, inputPremise, inputHypothesis, yTarget, learnRate):
+    def trainFunc(self, inputPremise, inputHypothesis, yTarget, learnRate, optimizer="rmsprop"):
         """
         Defines theano training function for layer, including forward runs and backpropagation.
         Takes as input the necessary symbolic variables.
         """
-        self.hiddenLayerPremise.forwardRun(inputPremise, 1)
+        self.hiddenLayerPremise.forwardRun(inputPremise, timeSteps=self.numTimestepsPremise) # Set numtimesteps here
         premiseOutputHidden = self.hiddenLayerPremise.finalHiddenVal
         premiseOutputCandidate = self.hiddenLayerPremise.finalCandidateVal
 
         self.hiddenLayerHypothesis.setInitialLayerParams(premiseOutputHidden, premiseOutputCandidate)
         cost, costFn = self.hiddenLayerHypothesis.costFunc(inputPremise,
-                                    inputHypothesis, yTarget, "hypothesis", 1)
+                                    inputHypothesis, yTarget, "hypothesis",
+                                    numTimesteps=self.numTimestepsHypothesis) # set numtimesteps here
 
         grads, gradsFn = self.hiddenLayerHypothesis.computeGrads(inputPremise,
                                                 inputHypothesis, yTarget, cost)
-        paramUpdates = self.hiddenLayerHypothesis.sgd(grads, learnRate)
-        trainFn = theano.function([inputPremise, inputHypothesis, yTarget, learnRate], updates=paramUpdates, name='trainNet')
+        #paramUpdates = self.hiddenLayerHypothesis.sgd(grads, learnRate)
+        fGradShared, fUpdate = self.hiddenLayerHypothesis.rmsprop(grads, learnRate,
+                                        inputPremise, inputHypothesis, yTarget, cost)
+        #trainFn = theano.function([inputPremise, inputHypothesis, yTarget, learnRate],
+        #                          updates=paramUpdates, name='trainNet')
 
-        return trainFn, costFn, gradsFn
+        return fGradShared, fUpdate, costFn, gradsFn
 
 
-    def train(self, numEpochs=1, batchSize=5, learnRateVal=0.1):
+    def train(self, numEpochs=1, batchSize=5, learnRateVal=0.1, numExamplesToTrain=-1):
         """
         Takes care of training model, including propagation of errors and updating of
         parameters.
@@ -253,6 +257,11 @@ class Network(object):
                                 self.valData, self.valDataStats)
         valGoldLabel = convertLabelsToMat(self.valData)
 
+        if numExamplesToTrain > 0:
+            valPremiseIdxMat = valPremiseIdxMat[:, range(numExamplesToTrain), :]
+            valHypothesisIdxMat = valHypothesisIdxMat[:, range(numExamplesToTrain), :]
+            valGoldLabel = valGoldLabel[range(numExamplesToTrain)]
+
 
         inputPremise = T.ftensor3(name="inputPremise")
         inputHypothesis = T.ftensor3(name="inputHypothesis")
@@ -260,7 +269,7 @@ class Network(object):
         learnRate = T.scalar(name="learnRate", dtype='float32')
 
         self.hiddenLayerHypothesis.appendParams(self.hiddenLayerPremise.params)
-        trainNetFunc, costFn, gradsFn = self.trainFunc(inputPremise,
+        forwardProp, updateNetworkParams, costFn, gradsFn = self.trainFunc(inputPremise,
                                         inputHypothesis, yTarget, learnRate)
 
         totalExamples = 0
@@ -270,10 +279,19 @@ class Network(object):
         # Training
         self.logger.Log("Starting training with {0} epochs, {1} batchSize, and"
                 " {2} sgd learning rate".format(numEpochs, batchSize, learnRateVal))
+
+        print "Initial params: "
+        self.printNetworkParams()
+
         for epoch in xrange(numEpochs):
             self.logger.Log("Epoch number: %d" %(epoch))
 
-            minibatches = Network.getMinibatchesIdx(len(valGoldLabel), batchSize)
+            if numExamplesToTrain > 0:
+                # To see if can overfit on small dataset
+                minibatches = Network.getMinibatchesIdx(numExamplesToTrain, batchSize)
+            else:
+                minibatches = Network.getMinibatchesIdx(len(valGoldLabel), batchSize)
+
             numExamples = 0
             for _, minibatch in minibatches:
                 numExamples += len(minibatch)
@@ -289,15 +307,16 @@ class Network(object):
                 batchLabels = valGoldLabel[minibatch]
 
 
-                #self.hiddenLayerHypothesis.printParams()
-                gradOut = trainNetFunc(batchPremiseTensor,
-                                       batchHypothesisTensor, batchLabels, learnRateVal)
+                self.printNetworkParams()
+                gradOut = forwardProp(batchPremiseTensor,
+                                       batchHypothesisTensor, batchLabels)
+                updateNetworkParams(learnRateVal)
                 newPremiseGrads = self.hiddenLayerHypothesis.getPremiseGrads()
                 self.hiddenLayerPremise.updateParams(newPremiseGrads)
-                #self.hiddenLayerHypothesis.printParams()
+                self.printNetworkParams()
 
-                # Note '15' below is completely arbitrary
-                if numExamples%(batchSize * 15) == 0:
+                # Note '10' below is completely arbitrary
+                if numExamples%(batchSize * 10) == 0:
                     valAccuracy = self.computeAccuracy(valPremiseIdxMat,
                                     valHypothesisIdxMat, valGoldLabel)
                     self.logger.Log("Current validation accuracy after {0} examples: {1}".\
@@ -306,8 +325,9 @@ class Network(object):
 
                 self.hiddenLayerHypothesis.appendParams(self.hiddenLayerPremise.params)
 
-        self.logger.Log("Training complete! Total training time: {0}".format
-                    (time.time() - startTime))
+        self.logger.Log("Training complete after processing {1} examples! "
+                        "Total training time: {0}".format((time.time() -
+                                                    startTime), totalExamples))
 
         # Save model to disk
         self.logger.Log("Saving model...")
@@ -326,6 +346,9 @@ class Network(object):
         valAccuracy = self.computeAccuracy(valPremiseIdxMat,
                                     valHypothesisIdxMat, valGoldLabel)
         self.logger.Log("Final validation accuracy: {0}".format(valAccuracy))
+
+        print "Final params: "
+        self.printNetworkParams()
 
 
     def predictFunc(self, symPremise, symHypothesis):

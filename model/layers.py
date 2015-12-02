@@ -38,7 +38,7 @@ class HiddenLayer(object):
         self.hiddenInit = None
         self.candidateValInit = None
 
-        # TODO: what to use for initializing parameters (random?)
+        # TODO: what to use for initializing parameters (random?) , Addendum: Kaiming He initialization!!!
 
         # Parameters for projecting from embedding size to input dimension
         self.b_toInput = theano.shared(np.random.randn(1, dimInput).astype(
@@ -288,6 +288,9 @@ class HiddenLayer(object):
         :return:
         """
         grads = T.grad(cost, wrt=self.params.values())
+        # Clip grads to specific range to avoid explosion
+       # grads= [T.clip(g, -3., 3.) for g in grads]
+
         gradsFn = theano.function([inputPremise, inputHypothesis, yTarget],
                                    grads, name='gradsFn')
         return grads, gradsFn
@@ -303,3 +306,54 @@ class HiddenLayer(object):
 
         return paramUpdate #theano.function([learnRate], [], updates=paramUpdate, name="sgdParamUpdate")
 
+
+    def rmsprop(self, grads, learnRate, inputPremise, inputHypothesis, yTarget, cost):
+        """
+        Return RMSprop updates for parameters of model.
+        :param grads:
+        :param learnRate:
+        :return:
+        """
+        zippedGrads = []
+        runningGrads2 = []
+        updir = []
+        for k, p in self.params.iteritems():
+            paramPrefix, layerName = k.split("_")
+
+            # Super hacky... to get the broadcasting to be compatible
+            if paramPrefix[0:4] == "bias":
+                zippedGrads.append(theano.shared(p.get_value() * np.asarray(0.),
+                        name="%s_grad" %k, broadcastable=(True, False)))
+                runningGrads2.append(theano.shared(p.get_value() * np.asarray(0.),
+                        name="%s_rgrad2" %k, broadcastable=(True, False)))
+                updir.append(theano.shared(p.get_value() * np.asarray(0.),
+                        name="%s_updir" %k, broadcastable=(True, False)))
+            else:
+                zippedGrads.append(theano.shared(p.get_value() * np.asarray(0.),
+                        name="%s_grad" %k))
+                runningGrads2.append(theano.shared(p.get_value() * np.asarray(0.),
+                        name="%s_rgrad2" %k))
+                updir.append(theano.shared(p.get_value() * np.asarray(0.),
+                        name="%s_updir" %k))
+
+
+        zgUpdate = [(zg, g) for zg, g in zip(zippedGrads, grads)]
+        rg2Update = [(rg2, 0.95 * rg2 + 0.05 * (g ** 2))
+             for rg2, g in zip(runningGrads2, grads)]
+
+        # Computes cost but does not update params
+        fGradShared = theano.function([inputPremise, inputHypothesis, yTarget], cost,
+                                    updates=zgUpdate + rg2Update,
+                                    name='rmspropFGradShared')
+
+        updirNew = [(ud, zg / T.sqrt(rg2 + 1e-4))
+                for ud, zg, rg2 in zip(updir, zippedGrads, runningGrads2)]
+
+        paramUpdate = [(p, p - learnRate * udn[1])
+                for p, udn in zip(self.params.values(), updirNew)]
+
+        fUpdate = theano.function([learnRate], [], updates=updirNew + paramUpdate,
+                               on_unused_input='ignore',
+                               name='rmsprop_f_update')
+
+        return fGradShared, fUpdate

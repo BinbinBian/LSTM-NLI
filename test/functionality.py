@@ -292,9 +292,10 @@ logPath = "/Users/mihaileric/Documents/Research/LSTM-NLI/log/runOutput.txt"
 
 def testTrainFunctionality():
     network = Network(embedData, trainData, trainDataStats, valData, valDataStats, testData,
-                testDataStats, logPath)
-    network.printNetworkParams()
-    network.train(numEpochs=3, batchSize=64, learnRateVal=0.15)
+                testDataStats, logPath, dimInput=100, dimHidden=64,
+                numTimestepsPremise=20, numTimestepsHypothesis=20)
+    #network.printNetworkParams()
+    network.train(numEpochs=150, batchSize=32, learnRateVal=0.05, numExamplesToTrain=100)
 
 
 def testExtractParamsAndSaveModel():
