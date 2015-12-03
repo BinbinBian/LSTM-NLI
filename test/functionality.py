@@ -295,7 +295,7 @@ def testTrainFunctionality():
                 testDataStats, logPath, dimInput=100, dimHidden=64,
                 numTimestepsPremise=20, numTimestepsHypothesis=20)
     #network.printNetworkParams()
-    network.train(numEpochs=20, batchSize=32, learnRateVal=3, numExamplesToTrain=100)
+    network.train(numEpochs=10, batchSize=32, learnRateVal=1.5, numExamplesToTrain=100)
 
 
 def testExtractParamsAndSaveModel():

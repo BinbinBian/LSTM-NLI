@@ -1,13 +1,14 @@
 """ Handles building, training, and testing the model.
 """
 import argparse
-import sys
 import os
+import sys
 
 # NOTE: May need to change this path
 sys.path.append("/Users/mihaileric/Documents/Research/LSTM-NLI/")
 
 from model.network import Network
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="argument parser for neural "
@@ -38,11 +39,16 @@ if __name__ == "__main__":
                         help="number of epochs to use for training")
     parser.add_argument("--learnRate", type=float,
                         help="learning rate used training")
-
+    parser.add_argument("--unrollSteps", type=int,
+                        help="number of steps to unroll LSTM layer for")
+    parser.add_argument("--numExamplesToTrain", type=int,
+                        default=-1, help="number of examples to use for training"
+                                         "if you don't want to use full data")
     args = parser.parse_args()
 
     network = Network(args.embedData, args.trainData, args.trainDataStats,
                       args.valData, args.valDataStats, args.testData,
-                      args.testDataStats, args.logPath, args.dimHidden,
-                      args.dimInput)
-    network.train(args.numEpochs, args.batchSize, args.learnRate)
+                      args.testDataStats, args.logPath, dimHidden=args.dimHidden,
+                      dimInput=args.dimInput, numTimestepsPremise=args.unrollSteps,
+                      numTimestepsHypothesis=args.unrollSteps)
+    network.train(args.numEpochs, args.batchSize, args.learnRate, args.numExamplesToTrain)

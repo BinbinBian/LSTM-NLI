@@ -19,6 +19,7 @@ from util.utils import convertLabelsToMat
 # Set random seed for deterministic runs
 SEED = 100
 np.random.seed(SEED)
+currDir = os.path.dirname(os.path.dirname(__file__))
 
 class Network(object):
     """
@@ -35,6 +36,8 @@ class Network(object):
         :param optimizer: Optimization algorithm to use for training. Will
                           eventually support adagrad, etc.
         """
+        self.configs = locals()
+
         self.numTimestepsPremise = numTimestepsPremise
         self.numTimestepsHypothesis = numTimestepsHypothesis
         self.embeddingTable = EmbeddingTable(embedData)
@@ -249,6 +252,7 @@ class Network(object):
         Takes care of training model, including propagation of errors and updating of
         parameters.
         """
+        self.configs.update(locals())
         # trainPremiseIdxMat, trainHypothesisIdxMat = self.embeddingTable.convertDataToIdxMatrices(
         #                         self.trainData, self.trainDataStats)
         # trainGoldLabel = convertLabelsToMat(self.trainLabels)
@@ -277,6 +281,7 @@ class Network(object):
         startTime = time.time()
 
         # Training
+        self.logger.Log("Model configs: {0}".format(self.configs))
         self.logger.Log("Starting training with {0} epochs, {1} batchSize, and"
                 " {2} sgd learning rate".format(numEpochs, batchSize, learnRateVal))
 
@@ -335,9 +340,10 @@ class Network(object):
         # Save model to disk
         self.logger.Log("Saving model...")
         self.extractParams()
-        configString = "batch={0},epoch={1},learnR={2}".format(str(batchSize),
+        configString = "batch={0},epoch={1},learnRate={2}".format(str(batchSize),
                                             str(numEpochs), str(learnRateVal))
-        self.saveModel("basicLSTM_"+configString+".npz")
+
+        self.saveModel(currDir + "/savedmodels/basicLSTM_"+configString+".npz")
         self.logger.Log("Model saved!")
 
         # Train Accuracy

@@ -3,6 +3,7 @@
 import copy
 import random
 import numpy as np
+import os
 
 LIN = "LIN"
 EXP = "EXP"
@@ -17,38 +18,34 @@ EXP = "EXP"
 # Non-tunable flags that must be passed in.
 
 FIXED_PARAMETERS = {
-    "data_type":     "snli",
-    "model_type":     "Model0",
-    "training_data_path":    "/scr/nlp/data/snli_1.0/snli_1.0_train.jsonl",
-    "eval_data_path":    "/scr/nlp/data/snli_1.0/snli_1.0_dev.jsonl",
-    "embedding_data_path": "/scr/nlp/data/glove_vecs/glove.840B.300d.txt",
-    "word_embedding_dim":	"300",
-    "model_dim":   "200",
-    "seq_length":	"50",
-    "eval_seq_length":	"100",
-    "clipping_max_value":  "5.0",
-    "batch_size":  "64",
-    "lstm_composition": "",
-    "ckpt_root":    "~/scr/"
+   # "data_type":     "snli",
+   # "model_type":     "Model0",
+    "trainData":    "/scr/nlp/data/snli_1.0/snli_1.0_train.jsonl",
+    "trainDataStats": "/afs/cs.stanford.edu/u/meric/scr/LSTM-NLI/data/train_dataStats.json",
+    "valData":    "/scr/nlp/data/snli_1.0/snli_1.0_dev.jsonl",
+    "valDataStats": "/afs/cs.stanford.edu/u/meric/scr/LSTM-NLI/data/dev_dataStats.json",
+    "testData": "/scr/nlp/data/snli_1.0/snli_1.0_test.jsonl",
+    "testDataStats": "/afs/cs.stanford.edu/u/meric/scr/LSTM-NLI/data/test_dataStats.json",
+    "embedData": "/scr/nlp/data/glove_vecs/glove.6B.50d.txt",
+    "dimInput": "100",
+    "dimHidden": "64",
+    "unrollSteps": "20",
+    #"clipping_max_value":  "3.0",
+    "batchSize":  "64",
+    "numExamplesToTrain": "100",
+    "numEpochs": "15"
 }
 
 # Tunable parameters.
 SWEEP_PARAMETERS = {
-    "learning_rate":      (EXP, 0.00005, 0.001),
-    "l2_lambda":   		  (EXP, 5e-7, 1e-4),
-    "init_range":         (EXP, 0.001, 0.005),
-    "double_identity_init_range": (EXP, 0.0005, 0.005),
-    "semantic_classifier_keep_rate": (LIN, 0.5, 0.9),
-    "embedding_keep_rate": (LIN, 0.5, 1.0)
+    "learnRate":      (EXP, 0.00005, 0.001),
+    #"l2_lambda":   		  (EXP, 5e-7, 1e-4), # TODO: Add regularization once sanity check passed
 }
 
-sweep_name = "sweep_" + \
-    FIXED_PARAMETERS["data_type"] + "_" + FIXED_PARAMETERS["model_type"]
 sweep_runs = 6
 queue = "jag"
 
 # - #
-print "# NAME: " + sweep_name
 print "# NUM RUNS: " + str(sweep_runs)
 print "# SWEEP PARAMETERS: " + str(SWEEP_PARAMETERS)
 print "# FIXED_PARAMETERS: " + str(FIXED_PARAMETERS)
@@ -76,7 +73,7 @@ for run_id in range(sweep_runs):
 
         params[param] = sample
 
-    name = sweep_name + "_" + str(run_id)
+    name = ""
     flags = ""
     for param in params:
         value = params[param]
@@ -88,6 +85,15 @@ for run_id in range(sweep_runs):
             else:
                 val_disp = "%.2g" % value
             name += "-" + param + val_disp
-    flags += " --experiment_name " + name
-    print "export REMBED_FLAGS=\"" + flags + "\"; qsub -v REMBED_FLAGS train_rembed_classifier.sh -q " + queue
+
+
+    batchSize = "batchSize" + FIXED_PARAMETERS["batchSize"]
+    numEpochs = "numEpochs" +  FIXED_PARAMETERS["numEpochs"]
+    dimHidden = "dimHidden" + FIXED_PARAMETERS["dimHidden"]
+    learnRate = "learnRate" + "%.2g" %params["learnRate"]
+    experimentName = "sweep_snli_" + batchSize + "_" + numEpochs + "_" + dimHidden + "_" + learnRate
+    logPath = os.path.dirname(__file__) + "/log/" + experimentName + ".log"
+    flags += " --logPath" + " " + logPath
+
+    print "export LSTM_NLI_FLAGS=\"" + flags + "\"; qsub -v LSTM_NLI_FLAGS train_LSTM_NLI.sh -q " + queue
     print
