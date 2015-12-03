@@ -150,15 +150,22 @@ def testCostFuncPipeline():
 def testGradComputation():
     hLayer = HiddenLayer(dimInput=2, dimHiddenState=2, dimEmbedding=2,
                          layerName="testHidden")
-    x = T.ftensor3("testX")
+    symPremise = T.ftensor3("testP")
+    symHypothesis = T.ftensor3("testH")
     yTarget = T.fmatrix("testyTarget")
 
-    xNP = np.array([[[0.5, 0.6]], [[0.3, 0.8]]], dtype=np.float32)
+    inputPremise = np.array([[[0.5, 0.6]], [[0.3, 0.8]]], dtype=np.float32)
+    inputHypothesis = np.array([[[0.2, 0.1]], [[0.2, 0.1]]], dtype=np.float32)
     yTargetNP = np.array([[0., 1., 0.]], dtype=np.float32)
-    cost = hLayer.costFunc(x, yTarget, numTimesteps=2)
-    grads = hLayer.computeGrads(x, yTarget, cost)
-    costGrad = theano.function([x, yTarget], grads, name='costGradients')
-    print "Grads: ", costGrad(xNP, yTargetNP)
+    cost, costFn = hLayer.costFunc(symPremise, symHypothesis, yTarget, "hypothesis", numTimesteps=2)
+    grads, gradsFn, gradsFnClipped = hLayer.computeGrads(symPremise, symHypothesis, yTarget, cost)
+    gradOut = gradsFn(inputPremise, inputHypothesis, yTargetNP)
+    gradOutClipped= gradsFnClipped(inputPremise, inputHypothesis, yTargetNP)
+    for g in gradOut:
+        print "Grad: ", np.asarray(g)
+
+    for g in gradOutClipped:
+        print "Clipped grad: ", np.asarray(g)
 
 
 def testSGD():
@@ -295,7 +302,7 @@ def testTrainFunctionality():
                 testDataStats, logPath, dimInput=100, dimHidden=64,
                 numTimestepsPremise=20, numTimestepsHypothesis=20)
     #network.printNetworkParams()
-    network.train(numEpochs=10, batchSize=32, learnRateVal=1.5, numExamplesToTrain=100)
+    network.train(numEpochs=10, batchSize=32, learnRateVal=0.001, numExamplesToTrain=10)
 
 
 def testExtractParamsAndSaveModel():

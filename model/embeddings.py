@@ -237,3 +237,25 @@ class EmbeddingTable(object):
 
         return premiseTensor, hypothesisTensor
 
+
+    def convertIdxMatToSentences(self, idxMat):
+        """
+        Convert from given idx mat back to collection of sentences that generated
+        given idx mat
+        :param idxMat:
+        :return: list of original sentences
+        """
+        sentences = []
+        numTimeSteps, numSamples, _ = idxMat.shape
+        for sampleIdx in range(numSamples):
+            sent = []
+            for t in range(numTimeSteps):
+                embedIdx = idxMat[t, sampleIdx, 0]
+                if np.isnan(embedIdx) or embedIdx == -1:
+                    sent.append("")
+                else:
+                    sent.append(self.indexToWord[embedIdx])
+
+            sentences.append(sent)
+
+        return sentences

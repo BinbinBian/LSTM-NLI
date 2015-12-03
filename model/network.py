@@ -259,6 +259,10 @@ class Network(object):
 
         valPremiseIdxMat, valHypothesisIdxMat = self.embeddingTable.convertDataToIdxMatrices(
                                 self.valData, self.valDataStats)
+        premiseSent = self.embeddingTable.convertIdxMatToSentences(valPremiseIdxMat)
+        hypothesisSent = self.embeddingTable.convertIdxMatToSentences(valHypothesisIdxMat)
+        self.logger.Log("Premises: " + str(premiseSent))
+        self.logger.Log("Hypotheses: " + str(hypothesisSent))
         valGoldLabel = convertLabelsToMat(self.valData)
 
         if numExamplesToTrain > 0:
@@ -286,7 +290,7 @@ class Network(object):
                 " {2} sgd learning rate".format(numEpochs, batchSize, learnRateVal))
 
         print "Initial params: "
-        self.printNetworkParams()
+        #self.printNetworkParams()
 
         for epoch in xrange(numEpochs):
             self.logger.Log("Epoch number: %d" %(epoch))
@@ -356,8 +360,8 @@ class Network(object):
                                     valHypothesisIdxMat, valGoldLabel)
         self.logger.Log("Final validation accuracy: {0}".format(valAccuracy))
 
-        print "Final params: "
-        self.printNetworkParams()
+        #print "Final params: "
+        #self.printNetworkParams()
 
 
     def predictFunc(self, symPremise, symHypothesis):

@@ -167,3 +167,20 @@ def convertLabelsToMat(dataFile):
             labelsMat[idx][labelIdx] = 1.
 
     return labelsMat
+
+
+def convertMatsToLabel(labelsMat):
+    """
+    Convert a matrix of labels to a list of labels
+    :param labelsMat:
+    :return:
+    """
+    labels = []
+    labelsList = ["entailment", "contradiction", "neutral"]
+    numSamples, _ = labelsMat.shape
+    for idx in range(numSamples):
+        sample = labelsMat[idx, :]
+        label = labelsList[np.where(sample == 1.)[0][0]]
+        labels.append(label)
+
+    return labels
