@@ -137,6 +137,19 @@ class HiddenLayer(object):
         self.params.update(newParams)
 
 
+    def printLayerParams(self):
+        """
+        Print params in current layer
+        :return:
+        """
+        print "Current parameter values for %s" %self.layerName
+        print "-" * 50
+        for pName, pValue in self.params.iteritems():
+            print pName + " : " + str(np.asarray(pValue.eval()))
+
+        print "-" * 50
+
+
     def getPremiseGrads(self):
         """
         Return a list of pairs of form (paramName, gradValue) to update premise layer
@@ -179,7 +192,10 @@ class HiddenLayer(object):
         :param prevCellState: Vec of cell state at previous time step.
         """
         # First project from dimEmbedding to dimInput
+        #print "W to input: ", np.asarray(self.W_toInput.eval()), " ", np.asarray(self.b_toInput.eval())
         input = T.dot(input, self.W_toInput.T) + self.b_toInput
+
+        #print "Input: ", np.asarray(input.eval())
 
         forgetGate = T.nnet.sigmoid(T.dot(input, self.W_f.T) + T.dot(prevHiddenState, self.U_f.T)
                                     + self.b_f) # Should be (numSamples, dimHidden)
@@ -217,8 +233,9 @@ class HiddenLayer(object):
                                 name="layers",
                                 n_steps=timeSteps)
 
-        self.finalCandidateVal = modelOut[1][-1] #[0][-1]
-        self.finalHiddenVal = modelOut[0][-1] # [1][-1]
+
+        self.finalCandidateVal = modelOut[1][-1]
+        self.finalHiddenVal = modelOut[0][-1]
 
         return modelOut, updates
 

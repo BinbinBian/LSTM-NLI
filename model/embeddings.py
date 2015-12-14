@@ -252,9 +252,9 @@ class EmbeddingTable(object):
             for t in range(numTimeSteps):
                 embedIdx = idxMat[t, sampleIdx, 0]
                 if np.isnan(embedIdx) or embedIdx == -1:
-                    sent.append("")
-                else:
-                    sent.append(self.indexToWord[embedIdx])
+                    continue
+
+                sent.append(self.indexToWord[embedIdx])
 
             sentences.append(sent)
 

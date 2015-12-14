@@ -13,7 +13,7 @@ import time
 from model.embeddings import EmbeddingTable
 from model.layers import HiddenLayer
 from util.afs_safe_logger import Logger
-from util.utils import convertLabelsToMat
+from util.utils import convertLabelsToMat, convertMatsToLabel
 
 
 # Set random seed for deterministic runs
@@ -236,15 +236,24 @@ class Network(object):
                                     inputHypothesis, yTarget, "hypothesis",
                                     numTimesteps=self.numTimestepsHypothesis) # set numtimesteps here
 
-        grads, gradsFn = self.hiddenLayerHypothesis.computeGrads(inputPremise,
+        gradsHypothesis, gradsHypothesisFn = self.hiddenLayerHypothesis.computeGrads(inputPremise,
                                                 inputHypothesis, yTarget, cost)
-        #paramUpdates = self.hiddenLayerHypothesis.sgd(grads, learnRate)
-        fGradShared, fUpdate = self.hiddenLayerHypothesis.rmsprop(grads, learnRate,
-                                        inputPremise, inputHypothesis, yTarget, cost)
-        #trainFn = theano.function([inputPremise, inputHypothesis, yTarget, learnRate],
-        #                          updates=paramUpdates, name='trainNet')
 
-        return fGradShared, fUpdate, costFn, gradsFn
+        gradsPremise, gradsPremiseFn = self.hiddenLayerPremise.computeGrads(inputPremise,
+                                                inputHypothesis, yTarget, cost)
+
+        # TODO: Take grads with respect to both premise and hypothesis layer
+
+        #paramUpdates = self.hiddenLayerHypothesis.sgd(grads, learnRate)
+        fGradSharedHypothesis, fUpdateHypothesis = self.hiddenLayerHypothesis.rmsprop(
+            gradsHypothesis, learnRate, inputPremise, inputHypothesis, yTarget, cost)
+
+        fGradSharedPremise, fUpdatePremise = self.hiddenLayerPremise.rmsprop(
+            gradsPremise, learnRate, inputPremise, inputHypothesis, yTarget, cost)
+
+
+        return (fGradSharedPremise, fGradSharedHypothesis, fUpdatePremise,
+                fUpdateHypothesis, costFn, gradsHypothesisFn, gradsPremiseFn)
 
 
     def train(self, numEpochs=1, batchSize=5, learnRateVal=0.1, numExamplesToTrain=-1):
@@ -259,16 +268,19 @@ class Network(object):
 
         valPremiseIdxMat, valHypothesisIdxMat = self.embeddingTable.convertDataToIdxMatrices(
                                 self.valData, self.valDataStats)
-        premiseSent = self.embeddingTable.convertIdxMatToSentences(valPremiseIdxMat)
-        hypothesisSent = self.embeddingTable.convertIdxMatToSentences(valHypothesisIdxMat)
-        self.logger.Log("Premises: " + str(premiseSent))
-        self.logger.Log("Hypotheses: " + str(hypothesisSent))
         valGoldLabel = convertLabelsToMat(self.valData)
 
         if numExamplesToTrain > 0:
             valPremiseIdxMat = valPremiseIdxMat[:, range(numExamplesToTrain), :]
             valHypothesisIdxMat = valHypothesisIdxMat[:, range(numExamplesToTrain), :]
             valGoldLabel = valGoldLabel[range(numExamplesToTrain)]
+
+        premiseSent = self.embeddingTable.convertIdxMatToSentences(valPremiseIdxMat)
+        hypothesisSent = self.embeddingTable.convertIdxMatToSentences(valHypothesisIdxMat)
+        self.logger.Log("Premises: " + str(premiseSent))
+        self.logger.Log("Hypotheses: " + str(hypothesisSent))
+        actualLabels = convertMatsToLabel(valGoldLabel)
+        self.logger.Log("Labels: " + str(actualLabels))
 
 
         inputPremise = T.ftensor3(name="inputPremise")
@@ -279,6 +291,9 @@ class Network(object):
         self.hiddenLayerHypothesis.appendParams(self.hiddenLayerPremise.params)
         forwardProp, updateNetworkParams, costFn, gradsFn = self.trainFunc(inputPremise,
                                         inputHypothesis, yTarget, learnRate)
+        fGradSharedHypothesis, fGradSharedPremise, fUpdatePremise, \
+            fUpdateHypothesis, costFn, _, _ = self.trainFunc(inputPremise,
+                                            inputHypothesis, yTarget, learnRate)
 
         totalExamples = 0
 
@@ -291,6 +306,8 @@ class Network(object):
 
         print "Initial params: "
         #self.printNetworkParams()
+
+        predictFunc = self.predictFunc(inputPremise, inputHypothesis)
 
         for epoch in xrange(numEpochs):
             self.logger.Log("Epoch number: %d" %(epoch))
@@ -318,15 +335,21 @@ class Network(object):
 
 
                 #self.printNetworkParams()
-                gradOut = forwardProp(batchPremiseTensor,
+                gradHypothesisOut = fGradSharedHypothesis(batchPremiseTensor,
                                        batchHypothesisTensor, batchLabels)
-                updateNetworkParams(learnRateVal)
-                newPremiseGrads = self.hiddenLayerHypothesis.getPremiseGrads()
-                self.hiddenLayerPremise.updateParams(newPremiseGrads)
+                gradPremiseOut = fGradSharedPremise(batchPremiseTensor,
+                                       batchHypothesisTensor, batchLabels)
+                fUpdatePremise(learnRateVal)
+                fUpdateHypothesis(learnRateVal)
+
+                # TODO: Do I need to explicitly update params by updating dict
                 #self.printNetworkParams()
 
+                predictLabels = self.predict(batchPremiseTensor, batchHypothesisTensor, predictFunc)
+                self.logger.Log("Labels in epoch {0}: {1}".format(epoch, str(predictLabels)))
+
                 # Note '200' below is completely arbitrary
-                if totalExamples%(200) == 0:
+                if totalExamples%(10) == 0:
                     valAccuracy = self.computeAccuracy(valPremiseIdxMat,
                                     valHypothesisIdxMat, valGoldLabel)
                     self.logger.Log("Current validation accuracy after {0} examples: {1}".\
@@ -399,3 +422,10 @@ class Network(object):
             labelCategories.append(categories[idx])
 
         return labelCategories
+
+    def updateParams(self):
+        """
+        Computes gradients with respect to parameters of layers in network.
+        Updates them appropriately. Seems to make
+        :return:
+        """

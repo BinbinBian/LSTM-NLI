@@ -51,37 +51,41 @@ def testIdxListToEmbedList():
 
 
 def testHiddenLayerStep():
-    hLayer = HiddenLayer(2,2, "blah")
-    print hLayer.b_f.eval()
-    print hLayer.W_f.eval() # Should give same values across runs
+    hLayer = HiddenLayer(2, 2, 2, "blah")
 
-    input = T.alloc(np.array([[1,2],[3,4], [3,4]], dtype=np.float64), 3, 2)
-    prevHidden = T.alloc(np.array([[4, 3],[0.2, -0.1], [0.2, -0.1]], dtype=np.float64), 3, 2)
-    prevCell = T.alloc(np.array([[5, 1], [0.4, 2], [0.4, 2]], dtype=np.float64), 3, 2)
-    nextHidden, nextCell = hLayer._step(input, prevHidden, prevCell)
+    # input = T.alloc(np.array([[1,2],[3,4], [3,4]], dtype=np.float64), 3, 2)
+    # prevHidden = T.alloc(np.array([[4, 3],[0.2, -0.1], [0.2, -0.1]], dtype=np.float64), 3, 2)
+    # prevCell = T.alloc(np.array([[5, 1], [0.4, 2], [0.4, 2]], dtype=np.float64), 3, 2)
+    # nextHidden, nextCell = hLayer._step(input, prevHidden, prevCell)
 
     input = T.alloc(np.array([1,2], dtype=np.float64), 1, 2)
     prevHidden = T.alloc(np.array([4, 3], dtype=np.float64), 1, 2)
     prevCell = T.alloc(np.array([5, 0.4], dtype=np.float64), 1, 2)
     nextHidden, nextCell = hLayer._step(input, prevHidden, prevCell)
 
-    input = T.alloc(np.array([[1,2],[3,4]], dtype=np.float64), 2, 2)
-    prevHidden = T.alloc(np.array([[4, 3],[0.2, -0.1]], dtype=np.float64), 2, 2)
-    prevCell = T.alloc(np.array([[5, 1], [0.4, 2]], dtype=np.float64), 2, 2)
-    nextHidden, nextCell = hLayer._step(input, prevHidden, prevCell)
+    # input = T.alloc(np.array([[1,2],[3,4]], dtype=np.float64), 2, 2)
+    # prevHidden = T.alloc(np.array([[4, 3],[0.2, -0.1]], dtype=np.float64), 2, 2)
+    # prevCell = T.alloc(np.array([[5, 1], [0.4, 2]], dtype=np.float64), 2, 2)
+    # nextHidden, nextCell = hLayer._step(input, prevHidden, prevCell)
 
-    print "-" * 100
-    nextnextHidden, nextnextCell = hLayer._step(input, nextHidden, nextCell)
-    print "-" * 100
-    hLayer._step(input, nextnextHidden, nextnextCell)
+    #print np.asarray(nextHidden.eval())
+    # print "-" * 100
+    # nextnextHidden, nextnextCell = hLayer._step(input, nextHidden, nextCell)
+    # print "-" * 100
+    # hLayer._step(input, nextnextHidden, nextnextCell)
 
 
 def testHiddenLayerScan():
-    hLayer = HiddenLayer(2, 2, "testHidden")
-    inputMat = T.as_tensor_variable(np.random.randn(2,1,2)) #(numTimeSteps, numSamples, dimHidden)
-    hiddenState, candidateVals = hLayer.forwardRun(inputMat, 2, 100)
-    print "Hidden: ", hiddenState[0].eval()
-    print "HIdden: ", hiddenState[1].eval()
+    hLayer = HiddenLayer(2, 2, 2, "testHidden")
+    inputMat = T.as_tensor_variable(np.random.randn(3,1,2).astype(np.float32)) #(numTimeSteps, numSamples, dimHidden)
+    modelOut, updates = hLayer.forwardRun(inputMat, 3)
+
+    for idx, item in enumerate(modelOut):
+        print "Item: {0}".format(idx)
+        print np.asarray(item[0].eval())
+        print np.asarray(item[1].eval())
+        print np.asarray(item[-1].eval())
+        print "----"
 
 
 def testCatProjection():
@@ -300,9 +304,9 @@ logPath = "/Users/mihaileric/Documents/Research/LSTM-NLI/log/runOutput.txt"
 def testTrainFunctionality():
     network = Network(embedData, trainData, trainDataStats, valData, valDataStats, testData,
                 testDataStats, logPath, dimInput=100, dimHidden=64,
-                numTimestepsPremise=20, numTimestepsHypothesis=20)
+                numTimestepsPremise=5, numTimestepsHypothesis=10)
     #network.printNetworkParams()
-    network.train(numEpochs=10, batchSize=32, learnRateVal=0.001, numExamplesToTrain=10)
+    network.train(numEpochs=10, batchSize=32, learnRateVal=0.01, numExamplesToTrain=30)
 
 
 def testExtractParamsAndSaveModel():
@@ -353,7 +357,7 @@ if __name__ == "__main__":
   #testSentToIdxMat()
   #testIdxListToEmbedList()
   #testHiddenLayerStep()
-  #testHiddenLayerScan()
+  testHiddenLayerScan()
   #testCatProjection()
   #testGetPrediction()
   #testCrossEntropyLoss()
@@ -366,7 +370,7 @@ if __name__ == "__main__":
    #testSNLIExample()
    #testConvertToIdxMatrices()
    #testConvertIdxMatToIdxTensor()
-   testTrainFunctionality()
+   #testTrainFunctionality()
    #testExtractParamsAndSaveModel()
    #testSaveLoadModel()
    #testAccuracyComputation()
