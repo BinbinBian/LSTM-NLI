@@ -19,6 +19,12 @@ from util.utils import convertLabelsToMat
 dataPath = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/"
 
 
+def testDeterministicParams():
+    layer1 = HiddenLayer(2, 2, 2, "test")
+    layer1.printLayerParams()
+
+    layer2 = HiddenLayer(2, 2, 2, "test")
+    layer2.printLayerParams()
 
 def testLabelsMat():
     labelsMat = convertLabelsToMat("/Users/mihaileric/Documents/Research/"
@@ -306,7 +312,7 @@ def testTrainFunctionality():
                 testDataStats, logPath, dimInput=100, dimHidden=64,
                 numTimestepsPremise=5, numTimestepsHypothesis=10)
     #network.printNetworkParams()
-    network.train(numEpochs=10, batchSize=32, learnRateVal=0.01, numExamplesToTrain=30)
+    network.train(numEpochs=10, batchSize=32, learnRateVal=0.00001, numExamplesToTrain=30)
 
 
 def testExtractParamsAndSaveModel():
@@ -357,7 +363,7 @@ if __name__ == "__main__":
   #testSentToIdxMat()
   #testIdxListToEmbedList()
   #testHiddenLayerStep()
-  testHiddenLayerScan()
+  #testHiddenLayerScan()
   #testCatProjection()
   #testGetPrediction()
   #testCrossEntropyLoss()
@@ -370,7 +376,8 @@ if __name__ == "__main__":
    #testSNLIExample()
    #testConvertToIdxMatrices()
    #testConvertIdxMatToIdxTensor()
-   #testTrainFunctionality()
+   testTrainFunctionality()
    #testExtractParamsAndSaveModel()
    #testSaveLoadModel()
    #testAccuracyComputation()
+   #testDeterministicParams()

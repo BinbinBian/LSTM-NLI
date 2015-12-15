@@ -261,6 +261,9 @@ class Network(object):
         Takes care of training model, including propagation of errors and updating of
         parameters.
         """
+
+        # TODO: Check that order of elements in Dict is staying consistent, especially when taking grads
+
         self.configs.update(locals())
         # trainPremiseIdxMat, trainHypothesisIdxMat = self.embeddingTable.convertDataToIdxMatrices(
         #                         self.trainData, self.trainDataStats)
@@ -288,9 +291,8 @@ class Network(object):
         yTarget = T.fmatrix(name="yTarget")
         learnRate = T.scalar(name="learnRate", dtype='float32')
 
-        self.hiddenLayerHypothesis.appendParams(self.hiddenLayerPremise.params)
-        forwardProp, updateNetworkParams, costFn, gradsFn = self.trainFunc(inputPremise,
-                                        inputHypothesis, yTarget, learnRate)
+        #forwardProp, updateNetworkParams, costFn, gradsFn = self.trainFunc(inputPremise,
+        #                                inputHypothesis, yTarget, learnRate)
         fGradSharedHypothesis, fGradSharedPremise, fUpdatePremise, \
             fUpdateHypothesis, costFn, _, _ = self.trainFunc(inputPremise,
                                             inputHypothesis, yTarget, learnRate)
@@ -304,7 +306,7 @@ class Network(object):
         self.logger.Log("Starting training with {0} epochs, {1} batchSize, and"
                 " {2} sgd learning rate".format(numEpochs, batchSize, learnRateVal))
 
-        print "Initial params: "
+        #print "Initial params: "
         #self.printNetworkParams()
 
         predictFunc = self.predictFunc(inputPremise, inputHypothesis)
@@ -348,7 +350,7 @@ class Network(object):
                 predictLabels = self.predict(batchPremiseTensor, batchHypothesisTensor, predictFunc)
                 self.logger.Log("Labels in epoch {0}: {1}".format(epoch, str(predictLabels)))
 
-                # Note '200' below is completely arbitrary
+                # Note  below is completely arbitrary
                 if totalExamples%(10) == 0:
                     valAccuracy = self.computeAccuracy(valPremiseIdxMat,
                                     valHypothesisIdxMat, valGoldLabel)
@@ -357,8 +359,6 @@ class Network(object):
                     cost = costFn(batchPremiseTensor, batchHypothesisTensor, batchLabels)
                     self.logger.Log("Current cost: {0}".format(cost))
 
-
-                self.hiddenLayerHypothesis.appendParams(self.hiddenLayerPremise.params)
 
         self.logger.Log("Training complete after processing {1} examples! "
                         "Total training time: {0}".format((time.time() -
