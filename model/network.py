@@ -58,11 +58,6 @@ class Network(object):
         self.dimInput = dimInput
 
         self.dimHidden = dimHidden
-        # To store matrix of data input
-        self.inputMat = None
-
-        self.premiseLSTMName = "premiseLayer"
-        self.hypothesisLSTMName = "hypothesisLayer"
 
         self.numericalParams = {} # Will store the numerical values of the
                         # theano variables that represent the params of the
@@ -242,7 +237,6 @@ class Network(object):
         gradsPremise, gradsPremiseFn = self.hiddenLayerPremise.computeGrads(inputPremise,
                                                 inputHypothesis, yTarget, cost)
 
-        # TODO: Take grads with respect to both premise and hypothesis layer
 
         #paramUpdates = self.hiddenLayerHypothesis.sgd(grads, learnRate)
         fGradSharedHypothesis, fUpdateHypothesis = self.hiddenLayerHypothesis.rmsprop(
@@ -304,10 +298,10 @@ class Network(object):
         # Training
         self.logger.Log("Model configs: {0}".format(self.configs))
         self.logger.Log("Starting training with {0} epochs, {1} batchSize, and"
-                " {2} sgd learning rate".format(numEpochs, batchSize, learnRateVal))
+                " {2} learning rate".format(numEpochs, batchSize, learnRateVal))
 
-        #print "Initial params: "
-        #self.printNetworkParams()
+        print "Initial params: "
+        self.printNetworkParams()
 
         predictFunc = self.predictFunc(inputPremise, inputHypothesis)
 

@@ -2,6 +2,7 @@
 
 import csv
 import json
+import math
 import numpy as np
 import os
 import re
@@ -184,3 +185,9 @@ def convertMatsToLabel(labelsMat):
         labels.append(label)
 
     return labels
+
+def HeKaimingInitializer():
+    return lambda shape: np.random.normal(scale=math.sqrt(4.0/(shape[0] + shape[1])), size=shape).astype(np.float32)
+
+def GaussianDefaultInitializer():
+    return lambda shape: np.random.randn(shape[0], shape[1]).astype(np.float32)

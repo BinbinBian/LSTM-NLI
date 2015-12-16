@@ -5,11 +5,13 @@ import theano
 import theano.tensor as T
 
 from util.afs_safe_logger import Logger
-
+from util.utils import HeKaimingInitializer, GaussianDefaultInitializer
 
 # Set random seed for deterministic runs
 SEED = 100
 np.random.seed(SEED)
+heka = HeKaimingInitializer()
+normal = GaussianDefaultInitializer()
 
 logger = Logger(log_path="/Users/mihaileric/Documents/Research/LSTM-NLI/log/"
                          "experimentLog.txt")
@@ -41,63 +43,55 @@ class HiddenLayer(object):
         # TODO: what to use for initializing parameters (random?) , Addendum: Kaiming He initialization!!!
 
         # Parameters for projecting from embedding size to input dimension
-        self.b_toInput = theano.shared(np.random.randn(1, dimInput).astype(
-                    np.float32), name="biasToInput_"+layerName,
-                    broadcastable=(True, False))
-        self.W_toInput = theano.shared(np.random.randn(dimInput,
-                                            dimEmbedding).astype(np.float32),
+        self.b_toInput = theano.shared(normal((1, dimInput)), name="biasToInput_"+layerName,
+                                        broadcastable=(True, False))
+        self.W_toInput = theano.shared(normal((dimInput, dimEmbedding)),
                                             name="weightsXtoInput_"+layerName)
 
         # Parameters for forget gate
-        self.b_f = theano.shared(np.random.randn(1, dimHiddenState).astype(
-            np.float32), name="biasF_"+layerName, broadcastable=(True, False))
-        self.W_f = theano.shared(np.random.randn(dimHiddenState,
-                                                 dimInput).astype(np.float32),
+        self.b_f = theano.shared(normal((1, dimHiddenState)), name="biasF_"+layerName,
+                                 broadcastable=(True, False))
+        self.W_f = theano.shared(normal((dimHiddenState, dimInput)),
                                                 name="weightsXf_"+layerName)
-        self.U_f = theano.shared(np.random.randn(dimHiddenState,
-                                        dimHiddenState).astype(np.float32),
+        self.U_f = theano.shared(normal((dimHiddenState,
+                                        dimHiddenState)),
                                         name="weightsHf_"+layerName)
 
         # Parameters for input gate
-        self.b_i = theano.shared(np.random.randn(1, dimHiddenState).astype(
-            np.float32), name="biasI_"+layerName, broadcastable=(True, False))
-        self.W_i = theano.shared(np.random.randn(dimHiddenState,
-                                                dimInput).astype(np.float32),
+        self.b_i = theano.shared(normal((1, dimHiddenState)), name="biasI_"+layerName, broadcastable=(True, False))
+        self.W_i = theano.shared(normal((dimHiddenState, dimInput)),
                                                 name="weightsXi_"+layerName)
-        self.U_i = theano.shared(np.random.randn(dimHiddenState,
-                                        dimHiddenState).astype(np.float32),
+        self.U_i = theano.shared(normal((dimHiddenState,
+                                        dimHiddenState)),
                                         name="weightsHi_"+layerName)
 
 
         # Parameters for candidate values
-        self.b_c = theano.shared(np.random.randn(1, dimHiddenState).astype(
-            np.float32), name="biasC_"+layerName, broadcastable=(True, False))
-        self.W_c = theano.shared(np.random.randn(dimHiddenState,
-                                               dimInput).astype(np.float32),
+        self.b_c = theano.shared(normal((1, dimHiddenState)), name="biasC_"+layerName, broadcastable=(True, False))
+        self.W_c = theano.shared(normal((dimHiddenState,
+                                               dimInput)),
                                                name="weightsXc_"+layerName)
-        self.U_c = theano.shared(np.random.randn(dimHiddenState,
-                                         dimHiddenState).astype(np.float32),
+        self.U_c = theano.shared(normal((dimHiddenState,
+                                         dimHiddenState)),
                                          name="weightsHc_"+layerName)
 
         # Parameters for final output vector transform (for final
         # classification)
-        self.b_o = theano.shared(np.random.randn(1, dimHiddenState).astype(
-            np.float32), name="biasO_"+layerName, broadcastable=(True, False))
-        self.W_o = theano.shared(np.random.randn(dimHiddenState,
-                                               dimInput).astype(np.float32),
+        self.b_o = theano.shared(normal((1, dimHiddenState)), name="biasO_"+layerName, broadcastable=(True, False))
+        self.W_o = theano.shared(normal((dimHiddenState,
+                                               dimInput)),
                                                name="weightsXo_"+layerName)
-        self.U_o = theano.shared(np.random.randn(dimHiddenState,
-                                         dimHiddenState).astype(np.float32),
+        self.U_o = theano.shared(normal((dimHiddenState,
+                                         dimHiddenState)),
                                          name="weightsHo_"+layerName)
 
 
         # Parameters for linear projection from output of forward pass to a
         # vector with dimension equal to number of categories being classified
         # via one more softmax
-        self.b_cat = theano.shared(np.random.randn(1, self.numLabels).astype(
-            np.float32), name="biasCat_"+layerName, broadcastable=(True, False))
-        self.W_cat = theano.shared(np.random.randn(dimHiddenState,
-                                            self.numLabels).astype(np.float32),
+        self.b_cat = theano.shared(normal((1, self.numLabels)), name="biasCat_"+layerName, broadcastable=(True, False))
+        self.W_cat = theano.shared(normal((dimHiddenState,
+                                            self.numLabels)),
                                             name="weightsCat_"+layerName)
 
 
