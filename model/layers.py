@@ -95,8 +95,8 @@ class HiddenLayer(object):
                                             name="weightsCat_"+layerName)
 
 
-        self.finalCandidateVal = None # Stores final cell state from scan in forwardPass
-        self.finalHiddenVal = None  # Stores final hidden state from scan in forwardPass
+        self.finalCandidateVal = None # Stores final cell state from scan in forwardRun
+        self.finalHiddenVal = None  # Stores final hidden state from scan in forwardRun
 
         # Add shared vars to params dict
         self.params["biasToInput_"+layerName] = self.b_toInput
@@ -186,10 +186,7 @@ class HiddenLayer(object):
         :param prevCellState: Vec of cell state at previous time step.
         """
         # First project from dimEmbedding to dimInput
-        #print "W to input: ", np.asarray(self.W_toInput.eval()), " ", np.asarray(self.b_toInput.eval())
         input = T.dot(input, self.W_toInput.T) + self.b_toInput
-
-        #print "Input: ", np.asarray(input.eval())
 
         forgetGate = T.nnet.sigmoid(T.dot(input, self.W_f.T) + T.dot(prevHiddenState, self.U_f.T)
                                     + self.b_f) # Should be (numSamples, dimHidden)
@@ -197,12 +194,12 @@ class HiddenLayer(object):
                                     + self.b_i) # Ditto
         candidateVals = T.tanh(T.dot(input, self.W_c.T) + T.dot(prevHiddenState, self.U_c.T)
                                 + self.b_c) # Ditto
-        candidateVals = forgetGate * prevCellState + inputGate * candidateVals # Ditto
+        cellState = forgetGate * prevCellState + inputGate * candidateVals # Ditto
         output = T.nnet.sigmoid(T.dot(input, self.W_o.T) + T.dot(prevHiddenState, self.U_o.T)
                                  + self.b_o) # Ditto
-        hiddenState = output * T.tanh(candidateVals) # Ditto
+        hiddenState = output * T.tanh(cellState) # Ditto
 
-        return hiddenState, candidateVals
+        return hiddenState, cellState
 
 
     def forwardRun(self, inputMat, timeSteps):
@@ -215,11 +212,14 @@ class HiddenLayer(object):
         """
         # Outputs of premise layer passed as input to hypothesis layer
         if self.hiddenInit is None and self.candidateValInit is None:
-            hiddenInit = T.unbroadcast(T.alloc(np.cast[theano.config.floatX](1.), inputMat.shape[1], self.dimHidden),0)
-            candidateValsInit = T.unbroadcast(T.alloc(np.cast[theano.config.floatX](1.), inputMat.shape[1], self.dimHidden), 0)
+            hiddenInit = T.unbroadcast(T.alloc(np.cast[theano.config.floatX](0.), inputMat.shape[1], self.dimHidden),0)
+            candidateValsInit = T.unbroadcast(T.alloc(np.cast[theano.config.floatX](0.), inputMat.shape[1], self.dimHidden), 0)
         else:
             hiddenInit = self.hiddenInit # Not sure if this is right...
             candidateValsInit = self.candidateValInit
+
+            assert hiddenInit is not None
+            assert candidateValsInit is not None
 
         modelOut, updates = theano.scan(self._step,
                                 sequences=[inputMat],
@@ -239,6 +239,11 @@ class HiddenLayer(object):
         Takes the final output of the forward run of an LSTM layer and projects
          to a vector of dim equal to number of categories we are classifying over.
         """
+        #hiddenPrintOp = theano.printing.Print("Final Hidden Val: ")
+        #printedHidden = hiddenPrintOp(self.finalHiddenVal)
+
+        #catOutput = T.dot(printedHidden, self.W_cat) + self.b_cat
+
         catOutput = T.dot(self.finalHiddenVal, self.W_cat) + self.b_cat
         return catOutput
 
@@ -248,7 +253,26 @@ class HiddenLayer(object):
         Apply softmax to final vector of outputs
         :return:
         """
+
+
+        #hiddenPrintOp = theano.printing.Print("Final Hidden Val: ")
+        #printedHidden = hiddenPrintOp(self.finalHiddenVal)
+
+
+        # catOutputOp = theano.printing.Print("Category Output: ")
+        # printedCat = catOutputOp(catOutput)
+        #
+        # softmaxOut = T.nnet.softmax(printedCat)
+
         softmaxOut = T.nnet.softmax(catOutput)
+
+        softmaxOutPrintOp = theano.printing.Print("Softmax Val: ")
+        printedSoftmax = softmaxOutPrintOp(softmaxOut)
+
+        #printSoftmaxFn = theano.function([inputPremise, inputHypothesis],
+        #                        printedSoftmax, name="printed Softmax")
+
+        #return printedSoftmax
         return softmaxOut
 
 
@@ -259,10 +283,18 @@ class HiddenLayer(object):
         :param yPred: Output from LSTM with softmax applied
         :return: Loss for given predictions and targets
         """
+        print "Cost --------------"
+        # printCost = theano.printing.Print("Current Cost: ")
+        # printYPred = theano.printing.Print("Y Pred: ")
+        # printYTarget = theano.printing.Print("Y Target: ")
+        # printedYPred = printYPred(yPred)
+        # printedYTarget = printYTarget(yTarget)
+        # printedCost = printCost(T.nnet.categorical_crossentropy(printedYPred, printedYTarget))
+        # return printedCost.mean()
         return T.nnet.categorical_crossentropy(yPred, yTarget).mean()
 
 
-    def computeAccuracy(self, yPred, yTarget):
+    def computeAccuracyLayer(self, yPred, yTarget):
         """
         Computes accuracy for target and predicted values
         :param yPred:
@@ -280,10 +312,19 @@ class HiddenLayer(object):
         :return: Symbolic expression for cost function as well as theano function
                  for computing cost expression.
         """
+        printPremise = theano.printing.Print("Premise Val: ")
+        printHypothesis = theano.printing.Print("Hypothesis Val: ")
+        printedPremise = printPremise(inputPremise)
+        printedHypothesis = printHypothesis(inputHypothesis)
+
         if layer == "premise":
             _ = self.forwardRun(inputPremise, numTimesteps)
         elif layer == "hypothesis":
             _ = self.forwardRun(inputHypothesis, numTimesteps)
+            #_ = self.forwardRun(printedHypothesis, numTimesteps)
+
+
+
         catOutput = self.projectToCategories()
         softmaxOut = self.applySoftmax(catOutput)
         cost = self.computeCrossEntropyCost(softmaxOut, yTarget)

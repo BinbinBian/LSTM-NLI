@@ -75,13 +75,13 @@ class EmbeddingTable(object):
     def getIdxFromWord(self, word):
         """
         Return the idx in the embedding lookup table for the given word. Return
-         -1 if word not found in lookup table.
+         'nan' if word not found in lookup table.
         """
         try:
             idx = self.wordToIndex[word]
             return idx
         except:
-            return -1
+            return np.nan
 
 
     def getEmbeddingFromWord(self, word):
@@ -108,8 +108,9 @@ class EmbeddingTable(object):
             embedding = self.embeddings[idx]
             return embedding
         except:
-            # Uniform initialization if embedding idx not found
-            return np.random.uniform(-0.05, 0.05, self.dimEmbeddings)
+            # Uniform initialization if embedding idx not found, do this later to train on embeddings
+            #return np.random.uniform(-0.05, 0.05, self.dimEmbeddings)
+            return np.zeros(self.dimEmbeddings)
 
 
     def convertSentToIdxMatrix(self, sentence):
@@ -150,7 +151,6 @@ class EmbeddingTable(object):
                 embeddingIdx = idxMat[tokenIdx, sampleIdx, 0]
                 idxTensor[tokenIdx, sampleIdx, :] = self.getEmbeddingfromIdx\
                                                             (embeddingIdx)
-
         return idxTensor
 
 

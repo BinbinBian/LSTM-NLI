@@ -170,27 +170,31 @@ class Network(object):
         return zip(range(len(minibatches)), minibatches)
 
 
-    def computeAccuracy(self, dataPremiseMat, dataHypothesisMat, dataTarget):
+    def computeAccuracy(self, dataPremiseMat, dataHypothesisMat, dataTarget,
+                        predictFunc, premiseSent, hypothesisSent):
         """
         Computes the accuracy for the given network on a certain dataset.
         """
         numExamples = len(dataTarget)
         correctPredictions = 0.
 
-        inputPremise = T.ftensor3("inputPremise")
-        inputHypothesis = T.ftensor3("inputHypothesis")
-        predictFn = self.predictFunc(inputPremise, inputHypothesis)
-
         # Arbitrary batch size set
-        minibatches = Network.getMinibatchesIdx(len(dataTarget), 10)
+        minibatches = Network.getMinibatchesIdx(len(dataTarget), 1)
 
         for _, minibatch in minibatches:
+            print "-"*100
+            print "Premise: ", str(premiseSent[minibatch[0]])
+            print "Hypothesis: ", str(hypothesisSent[minibatch[0]])
+            print "MiniBatch: ", str(minibatch)
+
             batchPremise = dataPremiseMat[0:self.numTimestepsPremise, minibatch, :]
             batchPremiseTensor = self.embeddingTable.convertIdxMatToIdxTensor(batchPremise)
             batchHypothesis = dataHypothesisMat[0:self.numTimestepsHypothesis, minibatch, :]
             batchHypothesisTensor = self.embeddingTable.convertIdxMatToIdxTensor(batchHypothesis)
 
-            prediction = predictFn(batchPremiseTensor, batchHypothesisTensor)
+            #print "Premise Tensor: ", batchPremiseTensor
+            #print "Hypothesis Tensor: ", batchHypothesisTensor
+            prediction = predictFunc(batchPremiseTensor, batchHypothesisTensor)
             batchLabels = dataTarget[minibatch]
             batchGoldIdx = [ex.argmax(axis=0) for ex in batchLabels]
 
@@ -272,10 +276,9 @@ class Network(object):
             valHypothesisIdxMat = valHypothesisIdxMat[:, range(numExamplesToTrain), :]
             valGoldLabel = valGoldLabel[range(numExamplesToTrain)]
 
+
         premiseSent = self.embeddingTable.convertIdxMatToSentences(valPremiseIdxMat)
         hypothesisSent = self.embeddingTable.convertIdxMatToSentences(valHypothesisIdxMat)
-        self.logger.Log("Premises: " + str(premiseSent))
-        self.logger.Log("Hypotheses: " + str(hypothesisSent))
         actualLabels = convertMatsToLabel(valGoldLabel)
         self.logger.Log("Labels: " + str(actualLabels))
 
@@ -300,8 +303,8 @@ class Network(object):
         self.logger.Log("Starting training with {0} epochs, {1} batchSize, and"
                 " {2} learning rate".format(numEpochs, batchSize, learnRateVal))
 
-        print "Initial params: "
-        self.printNetworkParams()
+        # print "Initial params: "
+        # self.printNetworkParams()
 
         predictFunc = self.predictFunc(inputPremise, inputHypothesis)
 
@@ -329,10 +332,16 @@ class Network(object):
 
                 batchLabels = valGoldLabel[minibatch]
 
+                #print "Premise: " + str(premiseSent[minibatch[0]])
+                #print "Hypothesis: " + str(hypothesisSent[minibatch[0]])
+                print "Gold Label: " + str(actualLabels[minibatch[0]])
+
 
                 #self.printNetworkParams()
+                print "Grad Hypothesis Out...."
                 gradHypothesisOut = fGradSharedHypothesis(batchPremiseTensor,
                                        batchHypothesisTensor, batchLabels)
+                print "Grad Premise Out......"
                 gradPremiseOut = fGradSharedPremise(batchPremiseTensor,
                                        batchHypothesisTensor, batchLabels)
                 fUpdatePremise(learnRateVal)
@@ -340,14 +349,15 @@ class Network(object):
 
                 # TODO: Do I need to explicitly update params by updating dict
                 #self.printNetworkParams()
-
+                print "Predicting Right NOW......"
                 predictLabels = self.predict(batchPremiseTensor, batchHypothesisTensor, predictFunc)
                 self.logger.Log("Labels in epoch {0}: {1}".format(epoch, str(predictLabels)))
 
-                # Note  below is completely arbitrary
+                #Note  below is completely arbitrary
                 if totalExamples%(10) == 0:
+                    print "Arrived here!!!!"
                     valAccuracy = self.computeAccuracy(valPremiseIdxMat,
-                                    valHypothesisIdxMat, valGoldLabel)
+                                    valHypothesisIdxMat, valGoldLabel, predictFunc, premiseSent, hypothesisSent)
                     self.logger.Log("Current validation accuracy after {0} examples: {1}".\
                                             format(totalExamples, valAccuracy))
                     cost = costFn(batchPremiseTensor, batchHypothesisTensor, batchLabels)
@@ -358,11 +368,15 @@ class Network(object):
                         "Total training time: {0}".format((time.time() -
                                                     startTime), totalExamples))
 
+        #print "Num Premise params: ", len(self.hiddenLayerPremise.params.keys())
+        #print "Num Hypothesis params: ", len(self.hiddenLayerHypothesis.params.keys())
+
         # Save model to disk
         self.logger.Log("Saving model...")
         self.extractParams()
-        configString = "batch={0},epoch={1},learnRate={2}".format(str(batchSize),
-                                            str(numEpochs), str(learnRateVal))
+        configString = "batch={0},epoch={1},learnRate={2},dimHidden={3},dimInput={4}".format(str(batchSize),
+                                            str(numEpochs), str(learnRateVal),
+                                            str(self.dimHidden), str(self.dimInput))
 
         self.saveModel(currDir + "/savedmodels/basicLSTM_"+configString+".npz")
         self.logger.Log("Model saved!")
@@ -373,8 +387,9 @@ class Network(object):
         # print "Training accuracy: {0}".format(trainAccuracy)
 
         # Val Accuracy
+        print "Computing Accuracy.........."
         valAccuracy = self.computeAccuracy(valPremiseIdxMat,
-                                    valHypothesisIdxMat, valGoldLabel)
+                                    valHypothesisIdxMat, valGoldLabel, predictFunc, premiseSent, hypothesisSent)
         self.logger.Log("Final validation accuracy: {0}".format(valAccuracy))
 
         #print "Final params: "
@@ -387,15 +402,19 @@ class Network(object):
         Takes as input a symbolic premise and a symbolic hypothesis.
         :return: Theano function for generating probability distribution over labels.
         """
-        self.hiddenLayerPremise.forwardRun(symPremise, 1)
+        self.hiddenLayerPremise.forwardRun(symPremise, timeSteps=self.numTimestepsPremise)
         premiseOutputHidden = self.hiddenLayerPremise.finalHiddenVal
         premiseOutputCandidate = self.hiddenLayerPremise.finalCandidateVal
 
         # Run through hypothesis LSTM
         self.hiddenLayerHypothesis.setInitialLayerParams(premiseOutputHidden, premiseOutputCandidate)
-        self.hiddenLayerHypothesis.forwardRun(symHypothesis, 1)
+        self.hiddenLayerHypothesis.forwardRun(symHypothesis, timeSteps=self.numTimestepsHypothesis)
         catOutput = self.hiddenLayerHypothesis.projectToCategories()
         softMaxOut = self.hiddenLayerHypothesis.applySoftmax(catOutput)
+
+        #labelSoftmax = theano.printing.Print("Softmax LABEL: ")
+        #labeledSoftmax = labelSoftmax(softMaxOut)
+
         labelIdx = softMaxOut.argmax(axis=1)
 
         return theano.function([symPremise, symHypothesis], labelIdx, name="predictLabelsFunction")
@@ -416,6 +435,7 @@ class Network(object):
             labelCategories.append(categories[idx])
 
         return labelCategories
+
 
     def updateParams(self):
         """

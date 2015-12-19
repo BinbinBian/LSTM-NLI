@@ -186,6 +186,8 @@ def convertMatsToLabel(labelsMat):
 
     return labels
 
+
+# TODO: Put these in a separate initializations util file
 def HeKaimingInitializer():
     return lambda shape: np.random.normal(scale=math.sqrt(4.0/(shape[0] + shape[1])), size=shape).astype(np.float32)
 
