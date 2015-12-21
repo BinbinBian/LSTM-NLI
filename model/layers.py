@@ -239,11 +239,6 @@ class HiddenLayer(object):
         Takes the final output of the forward run of an LSTM layer and projects
          to a vector of dim equal to number of categories we are classifying over.
         """
-        #hiddenPrintOp = theano.printing.Print("Final Hidden Val: ")
-        #printedHidden = hiddenPrintOp(self.finalHiddenVal)
-
-        #catOutput = T.dot(printedHidden, self.W_cat) + self.b_cat
-
         catOutput = T.dot(self.finalHiddenVal, self.W_cat) + self.b_cat
         return catOutput
 
@@ -253,26 +248,7 @@ class HiddenLayer(object):
         Apply softmax to final vector of outputs
         :return:
         """
-
-
-        #hiddenPrintOp = theano.printing.Print("Final Hidden Val: ")
-        #printedHidden = hiddenPrintOp(self.finalHiddenVal)
-
-
-        # catOutputOp = theano.printing.Print("Category Output: ")
-        # printedCat = catOutputOp(catOutput)
-        #
-        # softmaxOut = T.nnet.softmax(printedCat)
-
         softmaxOut = T.nnet.softmax(catOutput)
-
-        softmaxOutPrintOp = theano.printing.Print("Softmax Val: ")
-        printedSoftmax = softmaxOutPrintOp(softmaxOut)
-
-        #printSoftmaxFn = theano.function([inputPremise, inputHypothesis],
-        #                        printedSoftmax, name="printed Softmax")
-
-        #return printedSoftmax
         return softmaxOut
 
 
@@ -283,14 +259,6 @@ class HiddenLayer(object):
         :param yPred: Output from LSTM with softmax applied
         :return: Loss for given predictions and targets
         """
-        print "Cost --------------"
-        # printCost = theano.printing.Print("Current Cost: ")
-        # printYPred = theano.printing.Print("Y Pred: ")
-        # printYTarget = theano.printing.Print("Y Target: ")
-        # printedYPred = printYPred(yPred)
-        # printedYTarget = printYTarget(yTarget)
-        # printedCost = printCost(T.nnet.categorical_crossentropy(printedYPred, printedYTarget))
-        # return printedCost.mean()
         return T.nnet.categorical_crossentropy(yPred, yTarget).mean()
 
 
@@ -312,18 +280,10 @@ class HiddenLayer(object):
         :return: Symbolic expression for cost function as well as theano function
                  for computing cost expression.
         """
-        printPremise = theano.printing.Print("Premise Val: ")
-        printHypothesis = theano.printing.Print("Hypothesis Val: ")
-        printedPremise = printPremise(inputPremise)
-        printedHypothesis = printHypothesis(inputHypothesis)
-
         if layer == "premise":
             _ = self.forwardRun(inputPremise, numTimesteps)
         elif layer == "hypothesis":
             _ = self.forwardRun(inputHypothesis, numTimesteps)
-            #_ = self.forwardRun(printedHypothesis, numTimesteps)
-
-
 
         catOutput = self.projectToCategories()
         softmaxOut = self.applySoftmax(catOutput)
@@ -333,15 +293,16 @@ class HiddenLayer(object):
                                      cost, name='LSTM_cost_function')
 
 
-    def computeGrads(self, inputPremise, inputHypothesis, yTarget, cost):
+    def computeGrads(self, inputPremise, inputHypothesis, yTarget, cost, gradMax):
         """
         Computes gradients for cost function with respect to all parameters.
         :param costFunc:
+        :param gradMax: maximum gradient magnitude to use for clipping
         :return:
         """
         grads = T.grad(cost, wrt=self.params.values())
         # Clip grads to specific range to avoid parameter explosion
-        gradsClipped= [T.clip(g, -3., 3.) for g in grads]
+        gradsClipped= [T.clip(g, -gradMax, gradMax) for g in grads]
 
         gradsFn = theano.function([inputPremise, inputHypothesis, yTarget],
                                    gradsClipped, name='gradsFn')

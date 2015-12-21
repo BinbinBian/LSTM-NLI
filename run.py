@@ -40,10 +40,13 @@ if __name__ == "__main__":
     parser.add_argument("--learnRate", type=float,
                         help="learning rate used training")
     parser.add_argument("--unrollSteps", type=int,
-                        help="number of steps to unroll LSTM layer for")
+                        help="number of steps to unroll LSTM layer")
     parser.add_argument("--numExamplesToTrain", type=int,
                         default=-1, help="number of examples to use for training"
                                          "if you don't want to use full data")
+    parser.add_argument("--gradMax", type=float,
+                        default=3., help="maximum gradient magnitude to use for "
+                                         "gradient clipping")
     args = parser.parse_args()
 
     network = Network(args.embedData, args.trainData, args.trainDataStats,
@@ -51,4 +54,5 @@ if __name__ == "__main__":
                       args.testDataStats, args.logPath, dimHidden=args.dimHidden,
                       dimInput=args.dimInput, numTimestepsPremise=args.unrollSteps,
                       numTimestepsHypothesis=args.unrollSteps)
-    network.train(args.numEpochs, args.batchSize, args.learnRate, args.numExamplesToTrain)
+    network.train(args.numEpochs, args.batchSize, args.learnRate, args.numExamplesToTrain,
+                  args.gradMax)

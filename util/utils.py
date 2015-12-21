@@ -187,6 +187,50 @@ def convertMatsToLabel(labelsMat):
     return labels
 
 
+def getMinibatchesIdx(numDataPoints, minibatchSize, shuffle=False):
+        """
+        Used to shuffle the dataset at each iteration. Return list of
+        (batch #, batch) pairs.
+        """
+
+        idxList = np.arange(numDataPoints, dtype="int32")
+
+        if shuffle:
+            np.random.shuffle(idxList)
+
+        minibatches = []
+        minibatchStart = 0
+        for i in xrange(numDataPoints // minibatchSize):
+            minibatches.append(idxList[minibatchStart:
+                                        minibatchStart + minibatchSize])
+            minibatchStart += minibatchSize
+
+        if (minibatchStart != numDataPoints):
+            # Make a minibatch out of what is left
+            minibatches.append(idxList[minibatchStart:])
+
+        return zip(range(len(minibatches)), minibatches)
+
+
+def convertDataToTrainingBatch(premiseIdxMat, timestepsPremise, hypothesisIdxMat,
+                                   timestepsHypothesis, embeddingTable, labels, minibatch):
+        """
+        Convert idxMats to batch tensors for training.
+        :param premiseIdxMat:
+        :param hypothesisIdxMat:
+        :param labels:
+        :return: premise tensor, hypothesis tensor, and batch labels
+        """
+        batchPremise = premiseIdxMat[0:timestepsPremise, minibatch, :]
+        batchPremiseTensor = embeddingTable.convertIdxMatToIdxTensor(batchPremise)
+        batchHypothesis = hypothesisIdxMat[0:timestepsHypothesis, minibatch, :]
+        batchHypothesisTensor = embeddingTable.convertIdxMatToIdxTensor(batchHypothesis)
+
+        batchLabels = labels[minibatch]
+
+        return batchPremiseTensor, batchHypothesisTensor, batchLabels
+
+
 # TODO: Put these in a separate initializations util file
 def HeKaimingInitializer():
     return lambda shape: np.random.normal(scale=math.sqrt(4.0/(shape[0] + shape[1])), size=shape).astype(np.float32)

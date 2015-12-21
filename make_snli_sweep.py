@@ -28,17 +28,20 @@ FIXED_PARAMETERS = {
     "testDataStats": "/afs/cs.stanford.edu/u/meric/scr/LSTM-NLI/data/test_dataStats.json",
     "embedData": "/scr/nlp/data/glove_vecs/glove.6B.50d.txt",
     "dimInput": "100",
-    "dimHidden": "64",
-    "unrollSteps": "20",
+    #"dimHidden": "64",
+    #"unrollSteps": "20",
     #"clipping_max_value":  "3.0",
-    "batchSize":  "64",
-    "numExamplesToTrain": "100",
+    "batchSize":  "128",
+    "numExamplesToTrain": "-1",
     "numEpochs": "15"
 }
 
 # Tunable parameters.
 SWEEP_PARAMETERS = {
     "learnRate":      (EXP, 0.00005, 0.001),
+    "gradMax":         (LIN, 0.5, 10.),
+    "unrollSteps":      (LIN, 8, 25),
+    "dimHidden":        (LIN, 64, 512),
     #"l2_lambda":   		  (EXP, 5e-7, 1e-4), # TODO: Add regularization once sanity check passed
 }
 
@@ -89,7 +92,7 @@ for run_id in range(sweep_runs):
 
     batchSize = "batchSize" + FIXED_PARAMETERS["batchSize"]
     numEpochs = "numEpochs" +  FIXED_PARAMETERS["numEpochs"]
-    dimHidden = "dimHidden" + FIXED_PARAMETERS["dimHidden"]
+    dimHidden = "dimHidden" + str(params["dimHidden"])
     learnRate = "learnRate" + "%.2g" %params["learnRate"]
     experimentName = "sweep_snli_" + batchSize + "_" + numEpochs + "_" + dimHidden + "_" + learnRate
     logPath = os.path.dirname(__file__) + "/log/" + experimentName + ".log"
