@@ -95,7 +95,7 @@ for run_id in range(sweep_runs):
     dimHidden = "dimHidden" + str(params["dimHidden"])
     learnRate = "learnRate" + "%.2g" %params["learnRate"]
     experimentName = "sweep_snli_" + batchSize + "_" + numEpochs + "_" + dimHidden + "_" + learnRate
-    logPath = os.path.dirname(__file__) + "/log/" + experimentName + ".log"
+    logPath = os.getcwd() + "/log/" + experimentName + ".log"
     flags += " --logPath" + " " + logPath
 
     print "export LSTM_NLI_FLAGS=\"" + flags + "\"; qsub -v LSTM_NLI_FLAGS train_LSTM_NLI.sh -q " + queue

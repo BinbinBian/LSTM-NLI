@@ -209,7 +209,7 @@ class Network(object):
                                         self.dimEmbedding, "hypothesisLayer")
 
 
-    def trainFunc(self, inputPremise, inputHypothesis, yTarget, learnRate, gradMax, optimizer="rmsprop"):
+    def trainFunc(self, inputPremise, inputHypothesis, yTarget, learnRate, gradMax, regularization, optimizer="rmsprop"):
         """
         Defines theano training function for layer, including forward runs and backpropagation.
         Takes as input the necessary symbolic variables.
@@ -221,7 +221,8 @@ class Network(object):
         self.hiddenLayerHypothesis.setInitialLayerParams(premiseOutputHidden, premiseOutputCandidate)
         cost, costFn = self.hiddenLayerHypothesis.costFunc(inputPremise,
                                     inputHypothesis, yTarget, "hypothesis",
-                                    numTimesteps=self.numTimestepsHypothesis) # set numtimesteps here
+                                    regularization,
+                                    numTimesteps=self.numTimestepsHypothesis)
 
         gradsHypothesis, gradsHypothesisFn = self.hiddenLayerHypothesis.computeGrads(inputPremise,
                                                 inputHypothesis, yTarget, cost, gradMax)
@@ -242,7 +243,8 @@ class Network(object):
                 fUpdateHypothesis, costFn, gradsHypothesisFn, gradsPremiseFn)
 
 
-    def train(self, numEpochs=1, batchSize=5, learnRateVal=0.1, numExamplesToTrain=-1, gradMax=3.):
+    def train(self, numEpochs=1, batchSize=5, learnRateVal=0.1, numExamplesToTrain=-1, gradMax=3.,
+                regularization=0.0):
         """
         Takes care of training model, including propagation of errors and updating of
         parameters.
@@ -276,7 +278,8 @@ class Network(object):
 
         fGradSharedHypothesis, fGradSharedPremise, fUpdatePremise, \
             fUpdateHypothesis, costFn, _, _ = self.trainFunc(inputPremise,
-                                            inputHypothesis, yTarget, learnRate, gradMax)
+                                            inputHypothesis, yTarget, learnRate, gradMax,
+                                            regularization)
 
         totalExamples = 0
 

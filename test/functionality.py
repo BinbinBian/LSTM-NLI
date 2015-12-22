@@ -14,9 +14,12 @@ import time
 from model.embeddings import EmbeddingTable
 from model.layers import HiddenLayer
 from model.network import Network
-from util.utils import convertLabelsToMat
+from util.utils import convertLabelsToMat, computeParamNorms
 
 dataPath = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/"
+# Set random seed for deterministic runs
+SEED = 100
+np.random.seed(SEED)
 
 
 def testDeterministicParams():
@@ -25,6 +28,7 @@ def testDeterministicParams():
 
     layer2 = HiddenLayer(2, 2, 2, "test")
     layer2.printLayerParams()
+
 
 def testLabelsMat():
     labelsMat = convertLabelsToMat("/Users/mihaileric/Documents/Research/"
@@ -305,14 +309,17 @@ valDataStats = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/dev_dataStats
 valLabels = "/Users/mihaileric/Documents/Research/LSTM-NLI/dev_labels.json"
 testData = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/snli_1.0_test.jsonl"
 testDataStats = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/test_dataStats.json"
-logPath = "/Users/mihaileric/Documents/Research/LSTM-NLI/log/runOutput.txt"
+logPath = "/Users/mihaileric/Documents/Research/LSTM-NLI/log/runOutput"
 
 def testTrainFunctionality():
+    start = time.time()
     network = Network(embedData, trainData, trainDataStats, valData, valDataStats, testData,
-                testDataStats, logPath, dimInput=100, dimHidden=64,
-                numTimestepsPremise=5, numTimestepsHypothesis=10)
+                testDataStats, logPath, dimInput=100, dimHidden=256,
+                numTimestepsPremise=10, numTimestepsHypothesis=10)
     #network.printNetworkParams()
-    network.train(numEpochs=10, batchSize=32, learnRateVal=0.00001, numExamplesToTrain=30)
+    network.train(numEpochs=10, batchSize=10, learnRateVal=0.0007, numExamplesToTrain=30,
+                    gradMax=3., regularization=0.)
+    print "Total time for training functionality test: {0}".format(time.time() - start)
 
 
 def testExtractParamsAndSaveModel():
@@ -356,6 +363,27 @@ def testAccuracyComputation():
     print "Accuracy computed: {0}".format(accuracy)
 
 
+def testRegularization():
+    layer = HiddenLayer(2, 2, 2, "test", numCategories=3)
+
+    premise = T.ftensor3("testP")
+    hypothesis = T.ftensor3("testH")
+    yTarget = T.fmatrix("testyTarget")
+
+    hyp = np.array([[[0.5, 0.6]], [[0.3, 0.8]]], dtype = np.float32)
+    prem = np.array([[[0.5, 0.6]], [[0.3, 0.8]]], dtype = np.float32)
+    yTargetNP = np.array([[0., 1., 0.]], dtype=np.float32)
+
+    layer.printLayerParams()
+    cost, fn = layer.costFunc(premise, hypothesis, yTarget, "hypothesis", 0.0, 1)
+    costValue = fn(prem, hyp, yTargetNP)
+    print "Cost: ", costValue
+
+    LSTMparams = [layer.params[cParam] for cParam in layer.LSTMcellParams]
+    print "L2 norm all params: ", computeParamNorms(layer.params.values(), 0.5).eval()
+    print "L2 norm LSTM cell params: ", computeParamNorms(LSTMparams, 0.5).eval()
+
+
 if __name__ == "__main__":
   #testLabelsMat()
   # testEmbeddings()
@@ -381,3 +409,4 @@ if __name__ == "__main__":
    #testSaveLoadModel()
    #testAccuracyComputation()
    #testDeterministicParams()
+   #testRegularization()

@@ -5,7 +5,7 @@ import theano
 import theano.tensor as T
 
 from util.afs_safe_logger import Logger
-from util.utils import HeKaimingInitializer, GaussianDefaultInitializer
+from util.utils import HeKaimingInitializer, GaussianDefaultInitializer, computeParamNorms
 
 # Set random seed for deterministic runs
 SEED = 100
@@ -120,6 +120,12 @@ class HiddenLayer(object):
 
         self.params["biasCat_"+layerName] = self.b_cat
         self.params["weightsCat_"+layerName] = self.W_cat
+
+        # Keep track of names of parameters specific to LSTM cell
+        self.LSTMcellParams = ["biasI_"+layerName, "weightsXi_"+layerName, "weightsHi_"+layerName,
+                               "biasF_"+layerName, "weightsXf_"+layerName, "weightsHf_"+layerName,
+                               "biasC_"+layerName, "weightsXc_"+layerName, "weightsHc_"+layerName,
+                               "biasO_"+layerName, "weightsXo_"+layerName, "weightsHo_"+layerName]
 
 
     def appendParams(self, newParams):
@@ -272,7 +278,8 @@ class HiddenLayer(object):
         return T.mean(T.eq(T.argmax(yPred, axis=-1), T.argmax(yTarget, axis=-1)))
 
 
-    def costFunc(self, inputPremise, inputHypothesis, yTarget, layer, numTimesteps=1):
+    def costFunc(self, inputPremise, inputHypothesis, yTarget, layer, regularization,
+                 numTimesteps=1):
         """
         Compute end-to-end cost function for a collection of input data.
         :param layer: whether we are doing a forward computation in the
@@ -288,9 +295,12 @@ class HiddenLayer(object):
         catOutput = self.projectToCategories()
         softmaxOut = self.applySoftmax(catOutput)
         cost = self.computeCrossEntropyCost(softmaxOut, yTarget)
-        #theano.printing.pydotprint(cost, outfile="costGraph")
+
+        # Get params specific to cell and add L2 regularization to cost
+        LSTMparams = [self.params[cParam] for cParam in self.LSTMcellParams]
+        cost = cost + computeParamNorms(LSTMparams, regularization)
         return cost, theano.function([inputPremise, inputHypothesis, yTarget],
-                                     cost, name='LSTM_cost_function')
+                                     cost, name='LSTM_cost_function', on_unused_input="warn")
 
 
     def computeGrads(self, inputPremise, inputHypothesis, yTarget, cost, gradMax):

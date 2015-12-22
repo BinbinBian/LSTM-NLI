@@ -47,6 +47,8 @@ if __name__ == "__main__":
     parser.add_argument("--gradMax", type=float,
                         default=3., help="maximum gradient magnitude to use for "
                                          "gradient clipping")
+    parser.add_argument("--regularization", type=float,
+                        default=0., help="L2/L1 regularization coefficient")
     args = parser.parse_args()
 
     network = Network(args.embedData, args.trainData, args.trainDataStats,

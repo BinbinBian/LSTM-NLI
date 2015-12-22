@@ -7,6 +7,7 @@ import numpy as np
 import os
 import re
 import sys
+import theano
 
 from load_snli_data import loadExampleLabels
 
@@ -229,6 +230,21 @@ def convertDataToTrainingBatch(premiseIdxMat, timestepsPremise, hypothesisIdxMat
         batchLabels = labels[minibatch]
 
         return batchPremiseTensor, batchHypothesisTensor, batchLabels
+
+
+def computeParamNorms(params, regularization):
+    """
+    Compute the L2 norm of given params with regularization strength
+    :param params:
+    :param regularization:
+    :return:
+    """
+    rCoef = theano.shared(np.array(regularization), "regularizationStrength")
+    paramSum = 0.
+    for param in params:
+        paramSum += (param**2).sum()
+    paramSum *= rCoef
+    return paramSum
 
 
 # TODO: Put these in a separate initializations util file
