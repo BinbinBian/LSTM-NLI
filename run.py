@@ -47,8 +47,10 @@ if __name__ == "__main__":
     parser.add_argument("--gradMax", type=float,
                         default=3., help="maximum gradient magnitude to use for "
                                          "gradient clipping")
-    parser.add_argument("--regularization", type=float,
+    parser.add_argument("--L2regularization", type=float,
                         default=0., help="L2/L1 regularization coefficient")
+    parser.add_argument("--dropoutRate", type=float,
+                        default=1., help="dropout probability rate")
     args = parser.parse_args()
 
     network = Network(args.embedData, args.trainData, args.trainDataStats,
@@ -57,4 +59,4 @@ if __name__ == "__main__":
                       dimInput=args.dimInput, numTimestepsPremise=args.unrollSteps,
                       numTimestepsHypothesis=args.unrollSteps)
     network.train(args.numEpochs, args.batchSize, args.learnRate, args.numExamplesToTrain,
-                  args.gradMax)
+                  args.gradMax, args.L2regularization, args.dropoutRate)

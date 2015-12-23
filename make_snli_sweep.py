@@ -42,7 +42,8 @@ SWEEP_PARAMETERS = {
     "gradMax":         (LIN, 0.5, 10.),
     "unrollSteps":      (LIN, 8, 25),
     "dimHidden":        (LIN, 64, 512),
-    #"l2_lambda":   		  (EXP, 5e-7, 1e-4), # TODO: Add regularization once sanity check passed
+    "L2regularization":   		  (EXP, 5e-7, 1e-4),
+    "dropoutRate":          (LIN, 0.4, 1.0)
 }
 
 sweep_runs = 6

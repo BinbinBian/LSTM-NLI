@@ -61,11 +61,13 @@ class Network(object):
 
         self.dimHidden = dimHidden
 
+        # shared variable to keep track of whether to apply dropout in training/testing
+        # 0. = testing; 1. = training
+        self.dropoutMode = theano.shared(0.)
+
         self.numericalParams = {} # Will store the numerical values of the
                         # theano variables that represent the params of the
                         # model; stored as dict of (name, value) pairs
-
-        self.rng = RandomStreams(1)
 
         self.buildModel()
 
@@ -198,7 +200,8 @@ class Network(object):
         loss functions, etc.
         """
         self.hiddenLayerPremise = HiddenLayer(self.dimInput, self.dimHidden,
-                                              self.dimEmbedding, "premiseLayer")
+                                              self.dimEmbedding, "premiseLayer",
+                                              self.dropoutMode)
 
         # Need to make sure not differentiating with respect to Wcat of premise
         # May want to find cleaner way to deal with this later
@@ -206,10 +209,12 @@ class Network(object):
         del self.hiddenLayerPremise.params["biasCat_premiseLayer"]
 
         self.hiddenLayerHypothesis = HiddenLayer(self.dimInput, self.dimHidden,
-                                        self.dimEmbedding, "hypothesisLayer")
+                                        self.dimEmbedding, "hypothesisLayer",
+                                        self.dropoutMode)
 
 
-    def trainFunc(self, inputPremise, inputHypothesis, yTarget, learnRate, gradMax, regularization, optimizer="rmsprop"):
+    def trainFunc(self, inputPremise, inputHypothesis, yTarget, learnRate, gradMax,
+                  L2regularization, dropoutRate, optimizer="rmsprop"):
         """
         Defines theano training function for layer, including forward runs and backpropagation.
         Takes as input the necessary symbolic variables.
@@ -221,7 +226,7 @@ class Network(object):
         self.hiddenLayerHypothesis.setInitialLayerParams(premiseOutputHidden, premiseOutputCandidate)
         cost, costFn = self.hiddenLayerHypothesis.costFunc(inputPremise,
                                     inputHypothesis, yTarget, "hypothesis",
-                                    regularization,
+                                    L2regularization, dropoutRate,
                                     numTimesteps=self.numTimestepsHypothesis)
 
         gradsHypothesis, gradsHypothesisFn = self.hiddenLayerHypothesis.computeGrads(inputPremise,
@@ -244,7 +249,7 @@ class Network(object):
 
 
     def train(self, numEpochs=1, batchSize=5, learnRateVal=0.1, numExamplesToTrain=-1, gradMax=3.,
-                regularization=0.0):
+                L2regularization=0.0, dropoutRate=0.0):
         """
         Takes care of training model, including propagation of errors and updating of
         parameters.
@@ -253,9 +258,9 @@ class Network(object):
         # TODO: Check that order of elements in Dict is staying consistent, especially when taking grads
 
         self.configs.update(locals())
-        trainPremiseIdxMat, trainHypothesisIdxMat = self.embeddingTable.convertDataToIdxMatrices(
-                                 self.trainData, self.trainDataStats)
-        trainGoldLabel = convertLabelsToMat(self.trainData)
+        # trainPremiseIdxMat, trainHypothesisIdxMat = self.embeddingTable.convertDataToIdxMatrices(
+        #                          self.trainData, self.trainDataStats)
+        # trainGoldLabel = convertLabelsToMat(self.trainData)
 
         valPremiseIdxMat, valHypothesisIdxMat = self.embeddingTable.convertDataToIdxMatrices(
                                 self.valData, self.valDataStats)
@@ -263,35 +268,33 @@ class Network(object):
 
         # If you want to train on less than full dataset
         if numExamplesToTrain > 0:
-            trainPremiseIdxMat = trainPremiseIdxMat[:, range(numExamplesToTrain), :]
-            trainHypothesisIdxMat = trainHypothesisIdxMat[:, range(numExamplesToTrain), :]
-            trainGoldLabel = trainGoldLabel[range(numExamplesToTrain)]
+            valPremiseIdxMat = valPremiseIdxMat[:, range(numExamplesToTrain), :]
+            valHypothesisIdxMat = valHypothesisIdxMat[:, range(numExamplesToTrain), :]
+            valGoldLabel = valGoldLabel[range(numExamplesToTrain)]
 
-
-        #premiseSent = self.embeddingTable.convertIdxMatToSentences(valPremiseIdxMat)
-        #hypothesisSent = self.embeddingTable.convertIdxMatToSentences(valHypothesisIdxMat)
 
         inputPremise = T.ftensor3(name="inputPremise")
         inputHypothesis = T.ftensor3(name="inputHypothesis")
         yTarget = T.fmatrix(name="yTarget")
         learnRate = T.scalar(name="learnRate", dtype='float32')
 
+
         fGradSharedHypothesis, fGradSharedPremise, fUpdatePremise, \
             fUpdateHypothesis, costFn, _, _ = self.trainFunc(inputPremise,
                                             inputHypothesis, yTarget, learnRate, gradMax,
-                                            regularization)
+                                            L2regularization, dropoutRate)
 
         totalExamples = 0
-
         startTime = time.time()
 
         # Training
         self.logger.Log("Model configs: {0}".format(self.configs))
-        self.logger.Log("Starting training with {0} epochs, {1} batchSize, and"
-                " {2} learning rate".format(numEpochs, batchSize, learnRateVal))
+        self.logger.Log("Starting training with {0} epochs, {1} batchSize,"
+                " {2} learning rate, {3} L2regularization coefficient, and {4} dropout rate".format(
+            numEpochs, batchSize, learnRateVal, L2regularization, dropoutRate))
 
 
-        predictFunc = self.predictFunc(inputPremise, inputHypothesis)
+        predictFunc = self.predictFunc(inputPremise, inputHypothesis, dropoutRate)
 
         for epoch in xrange(numEpochs):
             self.logger.Log("Epoch number: %d" %(epoch))
@@ -304,6 +307,7 @@ class Network(object):
 
             numExamples = 0
             for _, minibatch in minibatches:
+                self.dropoutMode.set_value(1.)
                 numExamples += len(minibatch)
                 totalExamples += len(minibatch)
 
@@ -311,9 +315,9 @@ class Network(object):
                                 format(str(numExamples)))
 
                 batchPremiseTensor, batchHypothesisTensor, batchLabels = \
-                    convertDataToTrainingBatch(trainPremiseIdxMat, self.numTimestepsPremise, trainHypothesisIdxMat,
+                    convertDataToTrainingBatch(valPremiseIdxMat, self.numTimestepsPremise, valHypothesisIdxMat,
                                                self.numTimestepsHypothesis, self.embeddingTable,
-                                               trainGoldLabel, minibatch)
+                                               valGoldLabel, minibatch)
 
                 gradHypothesisOut = fGradSharedHypothesis(batchPremiseTensor,
                                        batchHypothesisTensor, batchLabels)
@@ -326,15 +330,20 @@ class Network(object):
                 predictLabels = self.predict(batchPremiseTensor, batchHypothesisTensor, predictFunc)
                 self.logger.Log("Labels in epoch {0}: {1}".format(epoch, str(predictLabels)))
 
-                # Periodically print training accuracy
+
+                cost = costFn(batchPremiseTensor, batchHypothesisTensor, batchLabels)
+                self.logger.Log("Current cost: {0}".format(cost))
+
+                # Periodically print val accuracy
                 if totalExamples%(10) == 0:
-                    trainAccuracy = self.computeAccuracy(trainPremiseIdxMat,
-                                    trainHypothesisIdxMat, trainGoldLabel, predictFunc)
+                    self.dropoutMode.set_value(0.)
+                    trainAccuracy = self.computeAccuracy(valPremiseIdxMat,
+                                    valHypothesisIdxMat, valGoldLabel, predictFunc)
                     self.logger.Log("Current training accuracy after {0} examples: {1}".\
                                             format(totalExamples, trainAccuracy))
 
-                    cost = costFn(batchPremiseTensor, batchHypothesisTensor, batchLabels)
-                    self.logger.Log("Current cost: {0}".format(cost))
+                    # cost = costFn(batchPremiseTensor, batchHypothesisTensor, batchLabels)
+                    # self.logger.Log("Current cost: {0}".format(cost))
 
 
         self.logger.Log("Training complete after processing {1} examples! "
@@ -350,18 +359,21 @@ class Network(object):
         self.saveModel(currDir + "/savedmodels/basicLSTM_"+configString+".npz")
         self.logger.Log("Model saved!")
 
+        # Set to 0. again for testing
+        self.dropoutMode.set_value(0.)
+
         #Train Accuracy
-        trainAccuracy = self.computeAccuracy(trainPremiseIdxMat,
-                                    trainHypothesisIdxMat, trainGoldLabel, predictFunc)
-        self.logger.Log("Final training accuracy: {0}".format(trainAccuracy))
+        # trainAccuracy = self.computeAccuracy(trainPremiseIdxMat,
+        #                             trainHypothesisIdxMat, trainGoldLabel, predictFunc)
+        # self.logger.Log("Final training accuracy: {0}".format(trainAccuracy))
 
         # Val Accuracy
-        # valAccuracy = self.computeAccuracy(valPremiseIdxMat,
-        #                             valHypothesisIdxMat, valGoldLabel, predictFunc)
-        # self.logger.Log("Final validation accuracy: {0}".format(valAccuracy))
+        valAccuracy = self.computeAccuracy(valPremiseIdxMat,
+                                    valHypothesisIdxMat, valGoldLabel, predictFunc)
+        self.logger.Log("Final validation accuracy: {0}".format(valAccuracy))
 
 
-    def predictFunc(self, symPremise, symHypothesis):
+    def predictFunc(self, symPremise, symHypothesis, dropoutRate):
         """
         Produces a theano prediction function for outputting the label of a given input.
         Takes as input a symbolic premise and a symbolic hypothesis.
@@ -374,6 +386,11 @@ class Network(object):
         # Run through hypothesis LSTM
         self.hiddenLayerHypothesis.setInitialLayerParams(premiseOutputHidden, premiseOutputCandidate)
         self.hiddenLayerHypothesis.forwardRun(symHypothesis, timeSteps=self.numTimestepsHypothesis)
+
+        # Apply dropout here
+        self.hiddenLayerHypothesis.finalHiddenVal = self.hiddenLayerHypothesis.applyDropout(
+                                self.hiddenLayerHypothesis.finalHiddenVal, self.dropoutMode,
+                                dropoutRate)
         catOutput = self.hiddenLayerHypothesis.projectToCategories()
         softMaxOut = self.hiddenLayerHypothesis.applySoftmax(catOutput)
 

@@ -316,9 +316,8 @@ def testTrainFunctionality():
     network = Network(embedData, trainData, trainDataStats, valData, valDataStats, testData,
                 testDataStats, logPath, dimInput=100, dimHidden=256,
                 numTimestepsPremise=10, numTimestepsHypothesis=10)
-    #network.printNetworkParams()
     network.train(numEpochs=10, batchSize=10, learnRateVal=0.0007, numExamplesToTrain=30,
-                    gradMax=3., regularization=0.)
+                    gradMax=3., L2regularization=0., dropoutRate=1.)
     print "Total time for training functionality test: {0}".format(time.time() - start)
 
 
@@ -370,8 +369,8 @@ def testRegularization():
     hypothesis = T.ftensor3("testH")
     yTarget = T.fmatrix("testyTarget")
 
-    hyp = np.array([[[0.5, 0.6]], [[0.3, 0.8]]], dtype = np.float32)
-    prem = np.array([[[0.5, 0.6]], [[0.3, 0.8]]], dtype = np.float32)
+    hyp = np.array([[[0.5, 0.6]], [[0.3, 0.8]]], dtype=np.float32)
+    prem = np.array([[[0.5, 0.6]], [[0.3, 0.8]]], dtype=np.float32)
     yTargetNP = np.array([[0., 1., 0.]], dtype=np.float32)
 
     layer.printLayerParams()
@@ -382,6 +381,22 @@ def testRegularization():
     LSTMparams = [layer.params[cParam] for cParam in layer.LSTMcellParams]
     print "L2 norm all params: ", computeParamNorms(layer.params.values(), 0.5).eval()
     print "L2 norm LSTM cell params: ", computeParamNorms(LSTMparams, 0.5).eval()
+
+
+def testDropout():
+    layer = HiddenLayer(2, 2, 2, "test", numCategories=3)
+    drop = theano.shared(0.)
+    rate = 1.
+    tensor = T.ftensor3("test")
+    transformed = layer.applyDropout(tensor, drop, rate)
+
+    fn = theano.function([tensor], transformed)
+
+    tensorVal = np.array([[[0.5, 0.6]], [[0.3, 0.8]]], dtype=np.float32)
+    print "Dropout val 0: ", fn(tensorVal)
+
+    drop.set_value(1.)
+    print "Dropout val 1: ", fn(tensorVal)
 
 
 if __name__ == "__main__":
@@ -410,3 +425,4 @@ if __name__ == "__main__":
    #testAccuracyComputation()
    #testDeterministicParams()
    #testRegularization()
+    #testDropout()

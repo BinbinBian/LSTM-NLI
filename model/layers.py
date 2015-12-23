@@ -4,12 +4,15 @@ import numpy as np
 import theano
 import theano.tensor as T
 
+from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from util.afs_safe_logger import Logger
 from util.utils import HeKaimingInitializer, GaussianDefaultInitializer, computeParamNorms
 
 # Set random seed for deterministic runs
 SEED = 100
 np.random.seed(SEED)
+rng = RandomStreams(SEED)
+
 heka = HeKaimingInitializer()
 normal = GaussianDefaultInitializer()
 
@@ -17,7 +20,7 @@ logger = Logger(log_path="/Users/mihaileric/Documents/Research/LSTM-NLI/log/"
                          "experimentLog.txt")
 
 class HiddenLayer(object):
-    def __init__(self, dimInput, dimHiddenState, dimEmbedding, layerName, numCategories=3):
+    def __init__(self, dimInput, dimHiddenState, dimEmbedding, layerName, dropoutMode, numCategories=3):
         """
         :param inputMat: Matrix of input vectors to use for unraveling
                          hidden layer.
@@ -32,6 +35,7 @@ class HiddenLayer(object):
         self.inputDim = dimInput
         self.dimHidden = dimHiddenState
         self.dimEmbedding = dimEmbedding
+        self.dropoutMode = dropoutMode
 
         # Represents number of categories used for classification
         self.numLabels = numCategories
@@ -278,8 +282,23 @@ class HiddenLayer(object):
         return T.mean(T.eq(T.argmax(yPred, axis=-1), T.argmax(yTarget, axis=-1)))
 
 
-    def costFunc(self, inputPremise, inputHypothesis, yTarget, layer, regularization,
-                 numTimesteps=1):
+    # TODO: Make this into static method in utility module
+    def applyDropout(self, tensor, mode, dropoutRate):
+        """
+        Apply dropout with given rate to given tensor, according to mode
+        (which indicates whether you are training or testing). Return transformed
+        tensor.
+        :return:
+        """
+        transformed = T.switch(mode,
+            (tensor * rng.binomial(tensor.shape, p=dropoutRate, n=1, dtype=tensor.dtype)),
+            tensor * dropoutRate)
+
+        return transformed
+
+
+    def costFunc(self, inputPremise, inputHypothesis, yTarget, layer, L2regularization,
+                 dropoutRate, numTimesteps=1):
         """
         Compute end-to-end cost function for a collection of input data.
         :param layer: whether we are doing a forward computation in the
@@ -292,13 +311,17 @@ class HiddenLayer(object):
         elif layer == "hypothesis":
             _ = self.forwardRun(inputHypothesis, numTimesteps)
 
+        # Apply dropout here before projecting to categories? apply to finalHiddenVal
+        self.finalHiddenVal = self.applyDropout(self.finalHiddenVal, self.dropoutMode,
+                                                dropoutRate)
+
         catOutput = self.projectToCategories()
         softmaxOut = self.applySoftmax(catOutput)
         cost = self.computeCrossEntropyCost(softmaxOut, yTarget)
 
         # Get params specific to cell and add L2 regularization to cost
         LSTMparams = [self.params[cParam] for cParam in self.LSTMcellParams]
-        cost = cost + computeParamNorms(LSTMparams, regularization)
+        cost = cost + computeParamNorms(self.params.values(), L2regularization)
         return cost, theano.function([inputPremise, inputHypothesis, yTarget],
                                      cost, name='LSTM_cost_function', on_unused_input="warn")
 
