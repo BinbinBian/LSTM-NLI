@@ -42,7 +42,7 @@ class HiddenLayer(object):
 
         # Initialization values for hidden layer compute unit parameters
         self.hiddenInit = None
-        self.candidateValInit = None
+        self.cellStateInit = None
 
         # TODO: what to use for initializing parameters (random?) , Addendum: Kaiming He initialization!!!
 
@@ -99,7 +99,7 @@ class HiddenLayer(object):
                                             name="weightsCat_"+layerName)
 
 
-        self.finalCandidateVal = None # Stores final cell state from scan in forwardRun
+        self.finalCellState = None # Stores final cell state from scan in forwardRun
         self.finalHiddenVal = None  # Stores final hidden state from scan in forwardRun
 
         # Add shared vars to params dict
@@ -177,14 +177,14 @@ class HiddenLayer(object):
             self.params[paramName] = newValue
 
 
-    def setInitialLayerParams(self, hiddenInit, candidateValInit):
+    def setInitialLayerParams(self, hiddenInit, cellStateInit):
         """
         Sets the initialization hidden value and candidate value parameters
         :param hiddenValInit:
         :param candidateValInit:
         """
         self.hiddenInit = hiddenInit
-        self.candidateValInit = candidateValInit
+        self.cellStateInit = cellStateInit
 
 
     def _step(self, input, prevHiddenState, prevCellState):
@@ -221,27 +221,27 @@ class HiddenLayer(object):
         :param numSamples:  Number of samples to do forward computation for this batch
         """
         # Outputs of premise layer passed as input to hypothesis layer
-        if self.hiddenInit is None and self.candidateValInit is None:
+        if self.hiddenInit is None and self.cellStateInit is None:
             hiddenInit = T.unbroadcast(T.alloc(np.cast[theano.config.floatX](0.), inputMat.shape[1], self.dimHidden),0)
-            candidateValsInit = T.unbroadcast(T.alloc(np.cast[theano.config.floatX](0.), inputMat.shape[1], self.dimHidden), 0)
+            cellStateInit = T.unbroadcast(T.alloc(np.cast[theano.config.floatX](0.), inputMat.shape[1], self.dimHidden), 0)
         else:
             hiddenInit = self.hiddenInit # Not sure if this is right...
-            candidateValsInit = self.candidateValInit
+            cellStateInit = self.cellStateInit
 
             assert hiddenInit is not None
-            assert candidateValsInit is not None
+            assert cellStateInit is not None
 
-        modelOut, updates = theano.scan(self._step,
+        timeStepOut, updates = theano.scan(self._step,
                                 sequences=[inputMat],
-                                outputs_info=[hiddenInit, candidateValsInit], # Running a batch of samples at a time
+                                outputs_info=[hiddenInit, cellStateInit], # Running a batch of samples at a time
                                 name="layers",
                                 n_steps=timeSteps)
 
 
-        self.finalCandidateVal = modelOut[1][-1]
-        self.finalHiddenVal = modelOut[0][-1]
+        self.finalCellState = timeStepOut[1][-1]
+        self.finalHiddenVal = timeStepOut[0][-1]
 
-        return modelOut, updates
+        return timeStepOut, updates
 
 
     def projectToCategories(self):
@@ -309,19 +309,19 @@ class HiddenLayer(object):
         if layer == "premise":
             _ = self.forwardRun(inputPremise, numTimesteps)
         elif layer == "hypothesis":
-            _ = self.forwardRun(inputHypothesis, numTimesteps)
+            timeStepOut, _ = self.forwardRun(inputHypothesis, numTimesteps)
+
 
         # Apply dropout here before projecting to categories? apply to finalHiddenVal
         self.finalHiddenVal = self.applyDropout(self.finalHiddenVal, self.dropoutMode,
                                                 dropoutRate)
-
         catOutput = self.projectToCategories()
         softmaxOut = self.applySoftmax(catOutput)
         cost = self.computeCrossEntropyCost(softmaxOut, yTarget)
 
         # Get params specific to cell and add L2 regularization to cost
         LSTMparams = [self.params[cParam] for cParam in self.LSTMcellParams]
-        cost = cost + computeParamNorms(self.params.values(), L2regularization)
+        cost = cost + computeParamNorms(LSTMparams, L2regularization)
         return cost, theano.function([inputPremise, inputHypothesis, yTarget],
                                      cost, name='LSTM_cost_function', on_unused_input="warn")
 

@@ -221,9 +221,9 @@ class Network(object):
         """
         self.hiddenLayerPremise.forwardRun(inputPremise, timeSteps=self.numTimestepsPremise) # Set numtimesteps here
         premiseOutputHidden = self.hiddenLayerPremise.finalHiddenVal
-        premiseOutputCandidate = self.hiddenLayerPremise.finalCandidateVal
+        premiseOutputCellState = self.hiddenLayerPremise.finalCellState
 
-        self.hiddenLayerHypothesis.setInitialLayerParams(premiseOutputHidden, premiseOutputCandidate)
+        self.hiddenLayerHypothesis.setInitialLayerParams(premiseOutputHidden, premiseOutputCellState)
         cost, costFn = self.hiddenLayerHypothesis.costFunc(inputPremise,
                                     inputHypothesis, yTarget, "hypothesis",
                                     L2regularization, dropoutRate,
@@ -381,10 +381,10 @@ class Network(object):
         """
         self.hiddenLayerPremise.forwardRun(symPremise, timeSteps=self.numTimestepsPremise)
         premiseOutputHidden = self.hiddenLayerPremise.finalHiddenVal
-        premiseOutputCandidate = self.hiddenLayerPremise.finalCandidateVal
+        premiseOutputCellState = self.hiddenLayerPremise.finalCellState
 
         # Run through hypothesis LSTM
-        self.hiddenLayerHypothesis.setInitialLayerParams(premiseOutputHidden, premiseOutputCandidate)
+        self.hiddenLayerHypothesis.setInitialLayerParams(premiseOutputHidden, premiseOutputCellState)
         self.hiddenLayerHypothesis.forwardRun(symHypothesis, timeSteps=self.numTimestepsHypothesis)
 
         # Apply dropout here
