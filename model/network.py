@@ -214,11 +214,14 @@ class Network(object):
 
 
     def trainFunc(self, inputPremise, inputHypothesis, yTarget, learnRate, gradMax,
-                  L2regularization, dropoutRate, optimizer="rmsprop"):
+                  L2regularization, dropoutRate, sentenceAttention, optimizer="rmsprop"):
         """
         Defines theano training function for layer, including forward runs and backpropagation.
         Takes as input the necessary symbolic variables.
         """
+        if sentenceAttention:
+            self.hiddenLayerHypothesis.initSentAttnParams()
+
         self.hiddenLayerPremise.forwardRun(inputPremise, timeSteps=self.numTimestepsPremise) # Set numtimesteps here
         premiseOutputHidden = self.hiddenLayerPremise.finalHiddenVal
         premiseOutputCellState = self.hiddenLayerPremise.finalCellState
@@ -226,8 +229,9 @@ class Network(object):
         self.hiddenLayerHypothesis.setInitialLayerParams(premiseOutputHidden, premiseOutputCellState)
         cost, costFn = self.hiddenLayerHypothesis.costFunc(inputPremise,
                                     inputHypothesis, yTarget, "hypothesis",
-                                    L2regularization, dropoutRate,
-                                    numTimesteps=self.numTimestepsHypothesis)
+                                    L2regularization, dropoutRate, sentenceAttention=sentenceAttention,
+                                    numTimestepsHypothesis=self.numTimestepsHypothesis,
+                                    numTimestepsPremise=self.numTimestepsPremise)
 
         gradsHypothesis, gradsHypothesisFn = self.hiddenLayerHypothesis.computeGrads(inputPremise,
                                                 inputHypothesis, yTarget, cost, gradMax)
@@ -235,8 +239,6 @@ class Network(object):
         gradsPremise, gradsPremiseFn = self.hiddenLayerPremise.computeGrads(inputPremise,
                                                 inputHypothesis, yTarget, cost, gradMax)
 
-
-        #paramUpdates = self.hiddenLayerHypothesis.sgd(grads, learnRate)
         fGradSharedHypothesis, fUpdateHypothesis = self.hiddenLayerHypothesis.rmsprop(
             gradsHypothesis, learnRate, inputPremise, inputHypothesis, yTarget, cost)
 
@@ -249,7 +251,7 @@ class Network(object):
 
 
     def train(self, numEpochs=1, batchSize=5, learnRateVal=0.1, numExamplesToTrain=-1, gradMax=3.,
-                L2regularization=0.0, dropoutRate=0.0):
+                L2regularization=0.0, dropoutRate=0.0, sentenceAttention=False):
         """
         Takes care of training model, including propagation of errors and updating of
         parameters.
@@ -282,7 +284,7 @@ class Network(object):
         fGradSharedHypothesis, fGradSharedPremise, fUpdatePremise, \
             fUpdateHypothesis, costFn, _, _ = self.trainFunc(inputPremise,
                                             inputHypothesis, yTarget, learnRate, gradMax,
-                                            L2regularization, dropoutRate)
+                                            L2regularization, dropoutRate, sentenceAttention)
 
         totalExamples = 0
         startTime = time.time()

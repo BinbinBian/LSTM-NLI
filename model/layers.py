@@ -231,17 +231,17 @@ class HiddenLayer(object):
             assert hiddenInit is not None
             assert cellStateInit is not None
 
-        timeStepOut, updates = theano.scan(self._step,
+        timestepOut, updates = theano.scan(self._step,
                                 sequences=[inputMat],
                                 outputs_info=[hiddenInit, cellStateInit], # Running a batch of samples at a time
                                 name="layers",
                                 n_steps=timeSteps)
 
 
-        self.finalCellState = timeStepOut[1][-1]
-        self.finalHiddenVal = timeStepOut[0][-1]
+        self.finalCellState = timestepOut[1][-1]
+        self.finalHiddenVal = timestepOut[0][-1]
 
-        return timeStepOut, updates
+        return timestepOut, updates
 
 
     def projectToCategories(self):
@@ -253,6 +253,7 @@ class HiddenLayer(object):
         return catOutput
 
 
+    # TODO: Incorporate this function into other ones
     def applySoftmax(self, catOutput):
         """
         Apply softmax to final vector of outputs
@@ -297,8 +298,73 @@ class HiddenLayer(object):
         return transformed
 
 
+    def initSentAttnParams(self):
+        """
+        Initializes sentence attention parameters if sentence level
+        attention is part of the model
+        :return:
+        """
+        self.W_y = theano.shared(normal((self.dimHidden,
+                                               self.dimHidden)),
+                                               name="weightsWy_"+self.layerName)
+        self.W_h = theano.shared(normal((self.dimHidden,
+                                               self.dimHidden)),
+                                               name="weightsWh_"+self.layerName)
+        self.W_x = theano.shared(normal((self.dimHidden,
+                                               self.dimHidden)),
+                                               name="weightsWx_"+self.layerName)
+        self.W_p = theano.shared(normal((self.dimHidden,
+                                               self.dimHidden)),
+                                               name="weightsWp_"+self.layerName)
+        self.w = theano.shared(normal((self.dimHidden, 1)),
+                               name="weightsAlphasoftmax_"+self.layerName)
+
+        self.params["weightsWy_"+self.layerName] = self.W_y
+        self.params["weightsWh_"+self.layerName] = self.W_h
+        self.params["weightsWx_"+self.layerName] = self.W_x
+        self.params["weightsWp_"+self.layerName] = self.W_p
+        self.params["weightsAlphasoftmax_"+self.layerName] = self.w
+
+        # TODO: May want to add params to self.LSTMparams for L2 regularization
+
+
+    def applySentenceAttention(self, premiseOutputs, finalHypothesisOutput, numTimestepsPremise):
+        """
+        Apply sentence level attention by attending over all premise outputs
+        once with the final hypothesis output. Note this is different from
+        word-by-word attention over the premise.
+        :param premiseOutputs:
+        :param finalHypothesisOutput:
+        :return:
+        """
+        # Note: Notation follows that in Rocktaschel's attention mechanism explanation:
+        # http://arxiv.org/pdf/1509.06664v2.pdf
+        timestep, numSamp, dimHidden = premiseOutputs.shape
+        Y = premiseOutputs.reshape((numSamp, timestep, dimHidden))
+        WyY = T.dot(Y, self.W_y) # Computing (WyY).T
+
+        transformedHn = (T.dot(self.W_h, finalHypothesisOutput.T)).T
+        repeatedHn = [transformedHn] * numTimestepsPremise
+        # TODO: Condense this later if it works
+        repeatedHn = T.stacklists(repeatedHn)
+        repeatedHn = repeatedHn.dimshuffle(1, 0, 2) # (numSample, timestep, dimHidden)
+
+        M = T.tanh(WyY + repeatedHn)
+        alpha = T.nnet.softmax(T.dot(M, self.w).flatten(2)) # Hackery to make into 2d tensor of (numSamp, timestep)
+        Y = Y.dimshuffle(0, 2, 1)
+        rOut, updates = theano.scan(fn=lambda Yt, alphat: T.dot(Yt, alphat),
+                                    outputs_info=None, sequences=[Y, alpha],
+                                    non_sequences=None)
+        WxHn = T.dot(finalHypothesisOutput, self.W_x)
+        WpR = T.dot(rOut, self.W_p)
+        hstar = T.tanh(WxHn + WpR)
+
+        return hstar
+
+
     def costFunc(self, inputPremise, inputHypothesis, yTarget, layer, L2regularization,
-                 dropoutRate, numTimesteps=1):
+                 dropoutRate, sentenceAttention=False, numTimestepsHypothesis=1,
+                 numTimestepsPremise=1):
         """
         Compute end-to-end cost function for a collection of input data.
         :param layer: whether we are doing a forward computation in the
@@ -307,10 +373,15 @@ class HiddenLayer(object):
                  for computing cost expression.
         """
         if layer == "premise":
-            _ = self.forwardRun(inputPremise, numTimesteps)
+            _ = self.forwardRun(inputPremise, numTimestepsPremise)
         elif layer == "hypothesis":
-            timeStepOut, _ = self.forwardRun(inputHypothesis, numTimesteps)
+            timestepOut, _ = self.forwardRun(inputHypothesis, numTimestepsHypothesis)
 
+        # Apply sentence level attention -- notation consistent with paper
+        if sentenceAttention:
+            hstar = self.applySentenceAttention(timestepOut[0], self.finalHiddenVal,
+                                                numTimestepsPremise)
+            self.finalHiddenVal = hstar
 
         # Apply dropout here before projecting to categories? apply to finalHiddenVal
         self.finalHiddenVal = self.applyDropout(self.finalHiddenVal, self.dropoutMode,

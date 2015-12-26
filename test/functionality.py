@@ -86,7 +86,7 @@ def testHiddenLayerStep():
 
 
 def testHiddenLayerScan():
-    hLayer = HiddenLayer(2, 2, 2, "testHidden")
+    hLayer = HiddenLayer(2, 2, 2, "testHidden", False)
     inputMat = T.as_tensor_variable(np.random.randn(3,1,2).astype(np.float32)) #(numTimeSteps, numSamples, dimHidden)
     modelOut, updates = hLayer.forwardRun(inputMat, 3)
 
@@ -317,7 +317,8 @@ def testTrainFunctionality():
                 testDataStats, logPath, dimInput=100, dimHidden=256,
                 numTimestepsPremise=10, numTimestepsHypothesis=10)
     network.train(numEpochs=10, batchSize=10, learnRateVal=0.0007, numExamplesToTrain=30,
-                    gradMax=3., L2regularization=0., dropoutRate=1.)
+                    gradMax=3., L2regularization=0., dropoutRate=1.,
+                    sentenceAttention=False)
     print "Total time for training functionality test: {0}".format(time.time() - start)
 
 
@@ -399,6 +400,28 @@ def testDropout():
     print "Dropout val 1: ", fn(tensorVal)
 
 
+def testSentenceAttention():
+    hLayer = HiddenLayer(2, 2, 2, "testHidden", False)
+    hLayer.initSentAttnParams()
+    inputMat = T.as_tensor_variable(np.arange(16).reshape(4,2,2).astype(np.float32)) #(numTimeSteps, numSamples, dimHidden)
+    modelOut, updates = hLayer.forwardRun(inputMat, 4)
+    finalHoutput = hLayer.finalHiddenVal
+
+    hstar = hLayer.applySentenceAttention(modelOut[0], finalHoutput, 4)
+
+    inputMat = T.as_tensor_variable(np.arange(6).reshape(3,1,2).astype(np.float32)) #(numTimeSteps, numSamples, dimHidden)
+    modelOut, updates = hLayer.forwardRun(inputMat, 3)
+    finalHoutput = hLayer.finalHiddenVal
+
+    hstar = hLayer.applySentenceAttention(modelOut[0], finalHoutput, 3)
+
+    inputMat = T.as_tensor_variable(np.arange(8).reshape(4,1,2).astype(np.float32)) #(numTimeSteps, numSamples, dimHidden)
+    modelOut, updates = hLayer.forwardRun(inputMat, 4)
+    finalHoutput = hLayer.finalHiddenVal
+
+    hstar = hLayer.applySentenceAttention(modelOut[0], finalHoutput, 4)
+
+
 if __name__ == "__main__":
   #testLabelsMat()
   # testEmbeddings()
@@ -426,3 +449,4 @@ if __name__ == "__main__":
    #testDeterministicParams()
    #testRegularization()
     #testDropout()
+   #testSentenceAttention()
