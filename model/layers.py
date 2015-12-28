@@ -41,7 +41,7 @@ class HiddenLayer(object):
         self.numLabels = numCategories
 
         # Initialization values for hidden layer compute unit parameters
-        self.hiddenInit = None
+        self.outputInit = None
         self.cellStateInit = None
 
         # TODO: what to use for initializing parameters (random?) , Addendum: Kaiming He initialization!!!
@@ -100,7 +100,7 @@ class HiddenLayer(object):
 
 
         self.finalCellState = None # Stores final cell state from scan in forwardRun
-        self.finalHiddenVal = None  # Stores final hidden state from scan in forwardRun
+        self.finalOutputVal = None  # Stores final hidden state from scan in forwardRun
 
         # Add shared vars to params dict
         self.params["biasToInput_"+layerName] = self.b_toInput
@@ -177,13 +177,13 @@ class HiddenLayer(object):
             self.params[paramName] = newValue
 
 
-    def setInitialLayerParams(self, hiddenInit, cellStateInit):
+    def setInitialLayerParams(self, outputInit, cellStateInit):
         """
         Sets the initialization hidden value and candidate value parameters
         :param hiddenValInit:
         :param candidateValInit:
         """
-        self.hiddenInit = hiddenInit
+        self.outputInit = outputInit
         self.cellStateInit = cellStateInit
 
 
@@ -221,25 +221,25 @@ class HiddenLayer(object):
         :param numSamples:  Number of samples to do forward computation for this batch
         """
         # Outputs of premise layer passed as input to hypothesis layer
-        if self.hiddenInit is None and self.cellStateInit is None:
-            hiddenInit = T.unbroadcast(T.alloc(np.cast[theano.config.floatX](0.), inputMat.shape[1], self.dimHidden),0)
+        if self.outputInit is None and self.cellStateInit is None:
+            outputInit = T.unbroadcast(T.alloc(np.cast[theano.config.floatX](0.), inputMat.shape[1], self.dimHidden),0)
             cellStateInit = T.unbroadcast(T.alloc(np.cast[theano.config.floatX](0.), inputMat.shape[1], self.dimHidden), 0)
         else:
-            hiddenInit = self.hiddenInit # Not sure if this is right...
+            outputInit = self.outputInit
             cellStateInit = self.cellStateInit
 
-            assert hiddenInit is not None
+            assert outputInit is not None
             assert cellStateInit is not None
 
         timestepOut, updates = theano.scan(self._step,
                                 sequences=[inputMat],
-                                outputs_info=[hiddenInit, cellStateInit], # Running a batch of samples at a time
+                                outputs_info=[outputInit, cellStateInit], # Running a batch of samples at a time
                                 name="layers",
                                 n_steps=timeSteps)
 
 
         self.finalCellState = timestepOut[1][-1]
-        self.finalHiddenVal = timestepOut[0][-1]
+        self.finalOutputVal = timestepOut[0][-1]
 
         return timestepOut, updates
 
@@ -249,7 +249,7 @@ class HiddenLayer(object):
         Takes the final output of the forward run of an LSTM layer and projects
          to a vector of dim equal to number of categories we are classifying over.
         """
-        catOutput = T.dot(self.finalHiddenVal, self.W_cat) + self.b_cat
+        catOutput = T.dot(self.finalOutputVal, self.W_cat) + self.b_cat
         return catOutput
 
 
@@ -379,12 +379,12 @@ class HiddenLayer(object):
 
         # Apply sentence level attention -- notation consistent with paper
         if sentenceAttention:
-            hstar = self.applySentenceAttention(timestepOut[0], self.finalHiddenVal,
+            hstar = self.applySentenceAttention(timestepOut[0], self.finalOutputVal,
                                                 numTimestepsPremise)
-            self.finalHiddenVal = hstar
+            self.finalOutputVal = hstar
 
-        # Apply dropout here before projecting to categories? apply to finalHiddenVal
-        self.finalHiddenVal = self.applyDropout(self.finalHiddenVal, self.dropoutMode,
+        # Apply dropout here before projecting to categories? apply to finalOutputVal
+        self.finalOutputVal = self.applyDropout(self.finalOutputVal, self.dropoutMode,
                                                 dropoutRate)
         catOutput = self.projectToCategories()
         softmaxOut = self.applySoftmax(catOutput)
@@ -470,7 +470,7 @@ class HiddenLayer(object):
                 for p, udn in zip(self.params.values(), updirNew)]
 
         fUpdate = theano.function([learnRate], [], updates=updirNew + paramUpdate,
-                               on_unused_input='ignore',
+                               on_unused_input='warn',
                                name='rmsprop_f_update')
 
         return fGradShared, fUpdate

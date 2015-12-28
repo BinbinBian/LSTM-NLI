@@ -316,7 +316,7 @@ def testTrainFunctionality():
     network = Network(embedData, trainData, trainDataStats, valData, valDataStats, testData,
                 testDataStats, logPath, dimInput=100, dimHidden=256,
                 numTimestepsPremise=10, numTimestepsHypothesis=10)
-    network.train(numEpochs=10, batchSize=10, learnRateVal=0.0007, numExamplesToTrain=30,
+    network.train(numEpochs=17, batchSize=10, learnRateVal=0.0007, numExamplesToTrain=30,
                     gradMax=3., L2regularization=0., dropoutRate=1.,
                     sentenceAttention=False)
     print "Total time for training functionality test: {0}".format(time.time() - start)

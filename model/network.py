@@ -14,6 +14,7 @@ from model.embeddings import EmbeddingTable
 from model.layers import HiddenLayer
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from util.afs_safe_logger import Logger
+from util.stats import Stats
 from util.utils import convertLabelsToMat, convertMatsToLabel, getMinibatchesIdx, \
                         convertDataToTrainingBatch
 
@@ -149,6 +150,7 @@ class Network(object):
 
         return labelCategories
 
+
     @staticmethod
     def convertDataToTrainingBatch(premiseIdxMat, timestepsPremise, hypothesisIdxMat,
                                    timestepsHypothesis, embeddingTable, labels, minibatch):
@@ -223,10 +225,10 @@ class Network(object):
             self.hiddenLayerHypothesis.initSentAttnParams()
 
         self.hiddenLayerPremise.forwardRun(inputPremise, timeSteps=self.numTimestepsPremise) # Set numtimesteps here
-        premiseOutputHidden = self.hiddenLayerPremise.finalHiddenVal
+        premiseOutputVal = self.hiddenLayerPremise.finalOutputVal
         premiseOutputCellState = self.hiddenLayerPremise.finalCellState
 
-        self.hiddenLayerHypothesis.setInitialLayerParams(premiseOutputHidden, premiseOutputCellState)
+        self.hiddenLayerHypothesis.setInitialLayerParams(premiseOutputVal, premiseOutputCellState)
         cost, costFn = self.hiddenLayerHypothesis.costFunc(inputPremise,
                                     inputHypothesis, yTarget, "hypothesis",
                                     L2regularization, dropoutRate, sentenceAttention=sentenceAttention,
@@ -287,7 +289,7 @@ class Network(object):
                                             L2regularization, dropoutRate, sentenceAttention)
 
         totalExamples = 0
-        startTime = time.time()
+        stats = Stats(self.logger)
 
         # Training
         self.logger.Log("Model configs: {0}".format(self.configs))
@@ -328,29 +330,22 @@ class Network(object):
                 fUpdatePremise(learnRateVal)
                 fUpdateHypothesis(learnRateVal)
 
-                # TODO: Do I need to explicitly update params by updating dict
                 predictLabels = self.predict(batchPremiseTensor, batchHypothesisTensor, predictFunc)
                 self.logger.Log("Labels in epoch {0}: {1}".format(epoch, str(predictLabels)))
 
 
                 cost = costFn(batchPremiseTensor, batchHypothesisTensor, batchLabels)
-                self.logger.Log("Current cost: {0}".format(cost))
+                stats.recordCost(cost)
 
                 # Periodically print val accuracy
                 if totalExamples%(10) == 0:
                     self.dropoutMode.set_value(0.)
-                    trainAccuracy = self.computeAccuracy(valPremiseIdxMat,
+                    devAccuracy = self.computeAccuracy(valPremiseIdxMat,
                                     valHypothesisIdxMat, valGoldLabel, predictFunc)
-                    self.logger.Log("Current training accuracy after {0} examples: {1}".\
-                                            format(totalExamples, trainAccuracy))
-
-                    # cost = costFn(batchPremiseTensor, batchHypothesisTensor, batchLabels)
-                    # self.logger.Log("Current cost: {0}".format(cost))
+                    stats.recordDevAcc(totalExamples, devAccuracy)
 
 
-        self.logger.Log("Training complete after processing {1} examples! "
-                        "Total training time: {0}".format((time.time() -
-                                                    startTime), totalExamples))
+        stats.recordFinalTrainingTime(totalExamples)
 
         # Save model to disk
         self.logger.Log("Saving model...")
@@ -361,7 +356,7 @@ class Network(object):
         self.saveModel(currDir + "/savedmodels/basicLSTM_"+configString+".npz")
         self.logger.Log("Model saved!")
 
-        # Set to 0. again for testing
+        # Set dropout to 0. again for testing
         self.dropoutMode.set_value(0.)
 
         #Train Accuracy
@@ -372,7 +367,8 @@ class Network(object):
         # Val Accuracy
         valAccuracy = self.computeAccuracy(valPremiseIdxMat,
                                     valHypothesisIdxMat, valGoldLabel, predictFunc)
-        self.logger.Log("Final validation accuracy: {0}".format(valAccuracy))
+        # TODO: change -1 for training acc to actual value when I enable train computation
+        stats.recordFinalStats(totalExamples, -1, valAccuracy)
 
 
     def predictFunc(self, symPremise, symHypothesis, dropoutRate):
@@ -382,16 +378,16 @@ class Network(object):
         :return: Theano function for generating probability distribution over labels.
         """
         self.hiddenLayerPremise.forwardRun(symPremise, timeSteps=self.numTimestepsPremise)
-        premiseOutputHidden = self.hiddenLayerPremise.finalHiddenVal
+        premiseOutputVal = self.hiddenLayerPremise.finalOutputVal
         premiseOutputCellState = self.hiddenLayerPremise.finalCellState
 
         # Run through hypothesis LSTM
-        self.hiddenLayerHypothesis.setInitialLayerParams(premiseOutputHidden, premiseOutputCellState)
+        self.hiddenLayerHypothesis.setInitialLayerParams(premiseOutputVal, premiseOutputCellState)
         self.hiddenLayerHypothesis.forwardRun(symHypothesis, timeSteps=self.numTimestepsHypothesis)
 
         # Apply dropout here
-        self.hiddenLayerHypothesis.finalHiddenVal = self.hiddenLayerHypothesis.applyDropout(
-                                self.hiddenLayerHypothesis.finalHiddenVal, self.dropoutMode,
+        self.hiddenLayerHypothesis.finalOutputVal = self.hiddenLayerHypothesis.applyDropout(
+                                self.hiddenLayerHypothesis.finalOutputVal, self.dropoutMode,
                                 dropoutRate)
         catOutput = self.hiddenLayerHypothesis.projectToCategories()
         softMaxOut = self.hiddenLayerHypothesis.applySoftmax(catOutput)
