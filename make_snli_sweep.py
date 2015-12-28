@@ -95,7 +95,10 @@ for run_id in range(sweep_runs):
     numEpochs = "numEpochs" +  FIXED_PARAMETERS["numEpochs"]
     dimHidden = "dimHidden" + str(params["dimHidden"])
     learnRate = "learnRate" + "%.2g" %params["learnRate"]
-    experimentName = "sweep_snli_" + batchSize + "_" + numEpochs + "_" + dimHidden + "_" + learnRate
+    dropoutRate = "dropoutRate" + "%.2g" %params["dropoutRate"]
+    L2reg = "L2regularization" + "%.2g" %params["L2regularization"]
+
+    experimentName = "sweep_snli_" + batchSize + "_" + numEpochs + "_" + dimHidden + "_" + learnRate + "_" + L2reg + "_" + dropoutRate
     logPath = os.getcwd() + "/log/" + experimentName + ".log"
     flags += " --logPath" + " " + logPath
 
