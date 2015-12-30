@@ -253,23 +253,14 @@ class HiddenLayer(object):
         return catOutput
 
 
-    # TODO: Incorporate this function into other ones
-    def applySoftmax(self, catOutput):
-        """
-        Apply softmax to final vector of outputs
-        :return:
-        """
-        softmaxOut = T.nnet.softmax(catOutput)
-        return softmaxOut
-
-
-    def computeCrossEntropyCost(self, yPred, yTarget):
+    def computeCrossEntropyCost(self, catOutput, yTarget):
         """
         Given predictions returned through softmax projection, compute
         cross entropy cost
         :param yPred: Output from LSTM with softmax applied
         :return: Loss for given predictions and targets
         """
+        yPred = T.nnet.softmax(catOutput)
         return T.nnet.categorical_crossentropy(yPred, yTarget).mean()
 
 
@@ -388,8 +379,7 @@ class HiddenLayer(object):
         self.finalOutputVal = self.applyDropout(self.finalOutputVal, self.dropoutMode,
                                                 dropoutRate)
         catOutput = self.projectToCategories()
-        softmaxOut = self.applySoftmax(catOutput)
-        cost = self.computeCrossEntropyCost(softmaxOut, yTarget)
+        cost = self.computeCrossEntropyCost(catOutput, yTarget)
 
         # Get params specific to cell and add L2 regularization to cost
         LSTMparams = [self.params[cParam] for cParam in self.LSTMcellParams]

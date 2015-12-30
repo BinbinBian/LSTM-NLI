@@ -390,7 +390,7 @@ class Network(object):
                                 self.hiddenLayerHypothesis.finalOutputVal, self.dropoutMode,
                                 dropoutRate)
         catOutput = self.hiddenLayerHypothesis.projectToCategories()
-        softMaxOut = self.hiddenLayerHypothesis.applySoftmax(catOutput)
+        softMaxOut = T.nnet.softmax(catOutput)
 
         labelIdx = softMaxOut.argmax(axis=1)
 
