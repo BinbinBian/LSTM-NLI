@@ -24,9 +24,9 @@ np.random.seed(SEED)
 currDir = os.path.dirname(os.path.dirname(__file__))
 
 
-class Network(object):
+class LSTMP2H(object):
     """
-    Represents entire network.
+    Represents single layer premise LSTM to hypothesis LSTM network.
     """
     def __init__(self, embedData, trainData, trainDataStats, valData, valDataStats,
                  testData, testDataStats, logPath, dimHidden=2,

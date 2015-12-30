@@ -7,7 +7,7 @@ import sys
 # NOTE: May need to change this path
 sys.path.append("/Users/mihaileric/Documents/Research/LSTM-NLI/")
 
-from model.network import Network
+from model.lstmp2h import LSTMP2H
 
 
 if __name__ == "__main__":
@@ -53,7 +53,7 @@ if __name__ == "__main__":
                         default=1., help="dropout probability rate")
     args = parser.parse_args()
 
-    network = Network(args.embedData, args.trainData, args.trainDataStats,
+    network = LSTMP2H(args.embedData, args.trainData, args.trainDataStats,
                       args.valData, args.valDataStats, args.testData,
                       args.testDataStats, args.logPath, dimHidden=args.dimHidden,
                       dimInput=args.dimInput, numTimestepsPremise=args.unrollSteps,

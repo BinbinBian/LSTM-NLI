@@ -19,4 +19,4 @@ DEVICE=`python pick_gpu.py`
 # Log what we're running and where.
 echo `hostname` - $PBS_JOBID - $LSTM_NLI_FLAGS - $DEVICE - at `git log --pretty=format:'%h' -n 1` >> ~/lstm_nli_machine_assignments.txt
 
-THEANO_FLAGS=allow_gc=False,exception_verbosity=high,cuda.root=/usr/bin/cuda,warn_float64=warn,device=$DEVICE,floatX=float32 python -m run.py $LSTM_NLI_FLAGS
+THEANO_FLAGS=allow_gc=False,exception_verbosity=high,cuda.root=/usr/bin/cuda,warn_float64=warn,device=$DEVICE,floatX=float32 python -m P2H_LSTM_run.py $LSTM_NLI_FLAGS
