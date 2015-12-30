@@ -232,6 +232,15 @@ def convertDataToTrainingBatch(premiseIdxMat, timestepsPremise, hypothesisIdxMat
         return batchPremiseTensor, batchHypothesisTensor, batchLabels
 
 
+def initShared(value):
+    """
+    Initialize a shared tensor variable with the given float value
+    :param value:
+    :return:
+    """
+    return theano.shared(np.array(value).astype(np.float32))
+
+
 def computeParamNorms(params, L2regularization):
     """
     Compute the L2 norm of given params with regularization strength
@@ -239,7 +248,8 @@ def computeParamNorms(params, L2regularization):
     :param regularization:
     :return:
     """
-    rCoef = theano.shared(np.array(L2regularization), "regularizationStrength")
+    rCoef = theano.shared(np.array(L2regularization).astype(np.float32),
+                          "regularizationStrength")
     paramSum = 0.
     for param in params:
         paramSum += (param**2).sum()

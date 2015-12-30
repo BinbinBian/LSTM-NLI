@@ -291,10 +291,11 @@ class HiddenLayer(object):
         tensor.
         :return:
         """
+        # Explicit cast to float32 so that we don't accidentally get float64 tensor variables
+        dropoutRate = theano.shared(np.array(dropoutRate).astype(np.float32))
         transformed = T.switch(mode,
             (tensor * rng.binomial(tensor.shape, p=dropoutRate, n=1, dtype=tensor.dtype)),
             tensor * dropoutRate)
-
         return transformed
 
 
