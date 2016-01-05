@@ -19,6 +19,8 @@ normal = GaussianDefaultInitializer()
 logger = Logger(log_path="/Users/mihaileric/Documents/Research/LSTM-NLI/log/"
                          "experimentLog.txt")
 
+# TODO: Refactor so that initialization of params is provided as an option
+
 class HiddenLayer(object):
     def __init__(self, dimInput, dimHiddenState, dimEmbedding, layerName, dropoutMode, numCategories=3):
         """
@@ -237,6 +239,8 @@ class HiddenLayer(object):
                                 name="layers",
                                 n_steps=timeSteps)
 
+        # Store the outputs for all timesteps as attribute
+        self.allOutputs = timestepOut[0]
 
         self.finalCellState = timestepOut[1][-1]
         self.finalOutputVal = timestepOut[0][-1]
@@ -317,9 +321,8 @@ class HiddenLayer(object):
         self.params["weightsWp_"+self.layerName] = self.W_p
         self.params["weightsAlphasoftmax_"+self.layerName] = self.w
 
+
         # TODO: May want to add params to self.LSTMparams for L2 regularization
-
-
     def applySentenceAttention(self, premiseOutputs, finalHypothesisOutput, numTimestepsPremise):
         """
         Apply sentence level attention by attending over all premise outputs
@@ -354,9 +357,58 @@ class HiddenLayer(object):
         return hstar
 
 
+    def initWordwiseAttnParams(self):
+        """
+        Initializes parameters for wordwise attention if specified as part
+        of model.
+        :return:
+        """
+        self.initSentAttnParams()
+        self.W_r = theano.shared(normal((self.dimHidden,
+                                               self.dimHidden)),
+                                               name="weightsWr_"+self.layerName)
+        self.W_t = theano.shared(normal((self.dimHidden,
+                                               self.dimHidden)),
+                                               name="weightsWt_"+self.layerName)
+
+
+    def applyWordwiseAttention(self, premiseOutputs, hypothesisOutputs,
+                               finalHypothesisOutput, numTimestepsPremise, numTimestepsHypothesis):
+        """
+        Apply word-by-word attention as described in 2.4 of Rocktaschel paper
+        :param premiseOutputs:
+        :param hypothesisOutputs:
+        :param finalHypothesisOutput:
+        :param numTimestepsPremise:
+        :return:
+        """
+        # TODO: How to initialize r_{t-1}
+        timestep, numSamp, dimHidden = premiseOutputs.shape
+        Y = premiseOutputs.reshape((numSamp, timestep, dimHidden))
+        WyY = T.dot(Y, self.W_y) # Computing (WyY).T
+
+        transformedHn = (T.dot(self.W_h, finalHypothesisOutput.T)).T
+        repeatedHn = [transformedHn] * numTimestepsPremise
+        # TODO: Condense this later if it works
+        repeatedHn = T.stacklists(repeatedHn)
+        repeatedHn = repeatedHn.dimshuffle(1, 0, 2) # (numSample, timestep, dimHidden)
+
+        M = T.tanh(WyY + repeatedHn)
+        alpha = T.nnet.softmax(T.dot(M, self.w).flatten(2)) # Hackery to make into 2d tensor of (numSamp, timestep)
+        Y = Y.dimshuffle(0, 2, 1)
+        rOut, updates = theano.scan(fn=lambda Yt, alphat: T.dot(Yt, alphat),
+                                    outputs_info=None, sequences=[Y, alpha],
+                                    non_sequences=None)
+        WxHn = T.dot(finalHypothesisOutput, self.W_x)
+        WpR = T.dot(rOut, self.W_p)
+        hstar = T.tanh(WxHn + WpR)
+
+        return hstar
+
+
     def costFunc(self, inputPremise, inputHypothesis, yTarget, layer, L2regularization,
-                 dropoutRate, sentenceAttention=False, numTimestepsHypothesis=1,
-                 numTimestepsPremise=1):
+                 dropoutRate, premiseOutputs, sentenceAttention=False, wordwiseAttention=False,
+                 numTimestepsHypothesis=1, numTimestepsPremise=1):
         """
         Compute end-to-end cost function for a collection of input data.
         :param layer: whether we are doing a forward computation in the
@@ -371,8 +423,15 @@ class HiddenLayer(object):
 
         # Apply sentence level attention -- notation consistent with paper
         if sentenceAttention:
-            hstar = self.applySentenceAttention(timestepOut[0], self.finalOutputVal,
+            hstar = self.applySentenceAttention(premiseOutputs, self.finalOutputVal,
                                                 numTimestepsPremise)
+            self.finalOutputVal = hstar
+
+        # Apply word by word attention
+        if wordwiseAttention:
+            hstar = self.applySentenceAttention(premiseOutputs, timestepOut[0],
+                                                self.finalOutputVal, numTimestepsPremise,
+                                                numTimestepsHypothesis)
             self.finalOutputVal = hstar
 
         # Apply dropout here before projecting to categories? apply to finalOutputVal

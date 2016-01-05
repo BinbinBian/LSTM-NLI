@@ -316,9 +316,9 @@ def testTrainFunctionality():
     network = LSTMP2H(embedData, trainData, trainDataStats, valData, valDataStats, testData,
                 testDataStats, logPath, dimInput=100, dimHidden=256,
                 numTimestepsPremise=10, numTimestepsHypothesis=10)
-    network.train(numEpochs=17, batchSize=10, learnRateVal=0.0007, numExamplesToTrain=30,
+    network.train(numEpochs=14, batchSize=10, learnRateVal=0.0007, numExamplesToTrain=30,
                     gradMax=3., L2regularization=0., dropoutRate=1.,
-                    sentenceAttention=False)
+                    sentenceAttention=True)
     print "Total time for training functionality test: {0}".format(time.time() - start)
 
 
@@ -416,6 +416,16 @@ def testSentenceAttention():
     hstar = hLayer.applySentenceAttention(modelOut[0], finalHoutput, 3)
 
     inputMat = T.as_tensor_variable(np.arange(8).reshape(4,1,2).astype(np.float32)) #(numTimeSteps, numSamples, dimHidden)
+    modelOut, updates = hLayer.forwardRun(inputMat, 4)
+    finalHoutput = hLayer.finalHiddenVal
+
+    hstar = hLayer.applySentenceAttention(modelOut[0], finalHoutput, 4)
+
+
+def testWordwiseAttention():
+    hLayer = HiddenLayer(2, 2, 2, "testHidden", False)
+    hLayer.initSentAttnParams()
+    inputMat = T.as_tensor_variable(np.arange(16).reshape(4,2,2).astype(np.float32)) #(numTimeSteps, numSamples, dimHidden)
     modelOut, updates = hLayer.forwardRun(inputMat, 4)
     finalHoutput = hLayer.finalHiddenVal
 

@@ -231,7 +231,8 @@ class LSTMP2H(object):
         self.hiddenLayerHypothesis.setInitialLayerParams(premiseOutputVal, premiseOutputCellState)
         cost, costFn = self.hiddenLayerHypothesis.costFunc(inputPremise,
                                     inputHypothesis, yTarget, "hypothesis",
-                                    L2regularization, dropoutRate, sentenceAttention=sentenceAttention,
+                                    L2regularization, dropoutRate, self.hiddenLayerPremise.allOutputs,
+                                    sentenceAttention=sentenceAttention,
                                     numTimestepsHypothesis=self.numTimestepsHypothesis,
                                     numTimestepsPremise=self.numTimestepsPremise)
 
@@ -253,7 +254,8 @@ class LSTMP2H(object):
 
 
     def train(self, numEpochs=1, batchSize=5, learnRateVal=0.1, numExamplesToTrain=-1, gradMax=3.,
-                L2regularization=0.0, dropoutRate=0.0, sentenceAttention=False):
+                L2regularization=0.0, dropoutRate=0.0, sentenceAttention=False,
+                wordwiseAttention=False):
         """
         Takes care of training model, including propagation of errors and updating of
         parameters.
