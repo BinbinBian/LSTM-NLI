@@ -94,6 +94,9 @@ class LSTMP2H(object):
         for paramName, paramVar in self.hiddenLayerHypothesis.params.iteritems():
             self.numericalParams[paramName] = paramVar.get_value()
 
+        for paramName, paramVar in self.hiddenLayerPremise.params.iteritems():
+            self.numericalParams[paramName] = paramVar.get_value()
+
 
     def saveModel(self, modelFileName):
         """
