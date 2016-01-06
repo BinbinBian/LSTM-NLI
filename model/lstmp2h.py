@@ -216,7 +216,7 @@ class LSTMP2H(object):
 
 
     def trainFunc(self, inputPremise, inputHypothesis, yTarget, learnRate, gradMax,
-                  L2regularization, dropoutRate, sentenceAttention, optimizer="rmsprop"):
+                  L2regularization, dropoutRate, sentenceAttention, batchSize, optimizer="rmsprop"):
         """
         Defines theano training function for layer, including forward runs and backpropagation.
         Takes as input the necessary symbolic variables.
@@ -231,7 +231,7 @@ class LSTMP2H(object):
         self.hiddenLayerHypothesis.setInitialLayerParams(premiseOutputVal, premiseOutputCellState)
         cost, costFn = self.hiddenLayerHypothesis.costFunc(inputPremise,
                                     inputHypothesis, yTarget, "hypothesis",
-                                    L2regularization, dropoutRate, self.hiddenLayerPremise.allOutputs,
+                                    L2regularization, dropoutRate, self.hiddenLayerPremise.allOutputs, batchSize,
                                     sentenceAttention=sentenceAttention,
                                     numTimestepsHypothesis=self.numTimestepsHypothesis,
                                     numTimestepsPremise=self.numTimestepsPremise)
@@ -288,7 +288,7 @@ class LSTMP2H(object):
         fGradSharedHypothesis, fGradSharedPremise, fUpdatePremise, \
             fUpdateHypothesis, costFn, _, _ = self.trainFunc(inputPremise,
                                             inputHypothesis, yTarget, learnRate, gradMax,
-                                            L2regularization, dropoutRate, sentenceAttention)
+                                            L2regularization, dropoutRate, sentenceAttention, batchSize)
 
         totalExamples = 0
         stats = Stats(self.logger)
