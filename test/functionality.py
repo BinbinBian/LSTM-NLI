@@ -318,7 +318,7 @@ def testTrainFunctionality():
                 numTimestepsPremise=10, numTimestepsHypothesis=10)
     network.train(numEpochs=14, batchSize=10, learnRateVal=0.0007, numExamplesToTrain=30,
                     gradMax=3., L2regularization=0., dropoutRate=1.,
-                    sentenceAttention=True)
+                    sentenceAttention=False, wordwiseAttention=False)
     print "Total time for training functionality test: {0}".format(time.time() - start)
 
 
@@ -431,23 +431,23 @@ def testWordwiseAttention():
     modelOut, updates = hLayer.forwardRun(inputMat, 4)
     finalHoutput = hLayer.finalOutputVal
 
-    #hstar = hLayer.applyWordwiseAttention(modelOut[0], modelOut[0], finalHoutput, 2, 4, 4)
-    #print "Hstar: ", hstar.eval()
+    hstar = hLayer.applyWordwiseAttention(modelOut[0], modelOut[0], finalHoutput, 2, 4, 4)
+    print "Hstar: ", hstar.eval()
 
 
     inputMat = T.as_tensor_variable(np.arange(6).reshape(3, 1, 2).astype(np.float32)) #(numTimeSteps, numSamples, dimHidden)
     modelOut, updates = hLayer.forwardRun(inputMat, 3)
     finalHoutput = hLayer.finalOutputVal
 
-    #hstar = hLayer.applyWordwiseAttention(modelOut[0], modelOut[0], finalHoutput, 1, 3, 3)
-    #print "Hstar: ", hstar.eval()
+    hstar = hLayer.applyWordwiseAttention(modelOut[0], modelOut[0], finalHoutput, 1, 3, 3)
+    print "Hstar: ", hstar.eval()
 
     inputMat = T.as_tensor_variable(np.arange(8).reshape(4, 1, 2).astype(np.float32)) #(numTimeSteps, numSamples, dimHidden)
     modelOut, updates = hLayer.forwardRun(inputMat, 4)
     finalHoutput = hLayer.finalOutputVal
 
-    #hstar = hLayer.applyWordwiseAttention(modelOut[0], modelOut[0], finalHoutput, 1, 4, 4)
-    #print "hstar: ", hstar.eval()
+    hstar = hLayer.applyWordwiseAttention(modelOut[0], modelOut[0], finalHoutput, 1, 4, 4)
+    print "hstar: ", hstar.eval()
 
 
     inputMat = T.as_tensor_variable(np.arange(8).reshape(4, 1, 2).astype(np.float32)) #(numTimeSteps, numSamples, dimHidden)
@@ -477,7 +477,7 @@ if __name__ == "__main__":
    #testSNLIExample()
    #testConvertToIdxMatrices()
    #testConvertIdxMatToIdxTensor()
-   #testTrainFunctionality()
+   testTrainFunctionality()
    #testExtractParamsAndSaveModel()
    #testSaveLoadModel()
    #testAccuracyComputation()
@@ -485,4 +485,4 @@ if __name__ == "__main__":
    #testRegularization()
     #testDropout()
    #testSentenceAttention()
-    testWordwiseAttention()
+    #testWordwiseAttention()

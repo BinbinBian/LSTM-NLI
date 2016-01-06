@@ -369,7 +369,8 @@ class HiddenLayer(object):
                                                self.dimHidden)),
                                                name="weightsWt_"+self.layerName)
 
-
+    
+    # TODO: Get rid of print statements after testing on entire corpus and getting reasonable results
     def applyWordwiseAttention(self, premiseOutputs, hypothesisOutputs,
                                finalHypothesisOutput, batchSize,
                                numTimestepsPremise, numTimestepsHypothesis):
@@ -384,90 +385,90 @@ class HiddenLayer(object):
         timestep, numSamp, dimHidden = premiseOutputs.shape
         Y = premiseOutputs.reshape((numSamp, timestep, dimHidden))
 
-        print "Y shape beginning: ", Y.shape.eval()
+        #print "Y shape beginning: ", Y.shape.eval()
 
         WyY = T.dot(Y, self.W_y) # Computing (WyY).T
 
         # TODO: How to initialize r_{t-1} -- probably not right
         r_t = theano.shared(normal((self.dimHidden, batchSize)), name="rt_"+self.layerName)
 
-        print "WyY: ", WyY.eval()
+        #print "WyY: ", WyY.eval()
         # Iterate over hypothesis vector for every timestep
         for t in range(numTimestepsHypothesis):
-            print "-" * 100
-            print "Iter: ", t
+            #print "-" * 100
+            #print "Iter: ", t
             ht = hypothesisOutputs[t]
-            print "ht: ", ht.eval()
-            print "ht shape: ", ht.shape.eval()
+            #print "ht: ", ht.eval()
+            #print "ht shape: ", ht.shape.eval()
 
             transformedHt = (T.dot(self.W_h, ht.T)).T # Modify here (11)
 
-            print "tranformed Ht: ", transformedHt.eval()
-            print "transformed ht shape: ", transformedHt.shape.eval()
+            #print "tranformed Ht: ", transformedHt.eval()
+            #print "transformed ht shape: ", transformedHt.shape.eval()
 
-            print "Wr shape: ", self.W_r.shape.eval()
-            print "Wr: ", np.asarray(self.W_r.eval())
+            #print "Wr shape: ", self.W_r.shape.eval()
+            #print "Wr: ", np.asarray(self.W_r.eval())
 
-            print "R_t shape: ", r_t.shape.eval()
-            print "R_t: ", np.asarray(r_t.eval())
+            #print "R_t shape: ", r_t.shape.eval()
+            #print "R_t: ", np.asarray(r_t.eval())
 
             WrRt = (T.dot(self.W_r, r_t)).T # r_t.T?
 
             #print "WrRt: ", WrRt.eval()
-            print "WrRt shape: ", WrRt.shape.eval()
-            print "WrRt: ", WrRt.eval()
+            #print "WrRt shape: ", WrRt.shape.eval()
+            #print "WrRt: ", WrRt.eval()
 
             transformedHtRt = transformedHt + WrRt
 
             #print "tranformed HtRt: ", transformedHtRt.eval()
-            print "transformed HtRt shape: ", transformedHtRt.shape.eval()
-            print "transformed HtRt : ", transformedHtRt.eval()
+            #print "transformed HtRt shape: ", transformedHtRt.shape.eval()
+            #print "transformed HtRt : ", transformedHtRt.eval()
 
             premiseWeights = [transformedHtRt] * numTimestepsPremise
             # TODO: Condense this later if it works
             premiseWeights = T.stacklists(premiseWeights)
             #print "Premise weights: ", premiseWeights.eval()
-            print "premise weights shape: ", premiseWeights.shape.eval()
-            print "premise weights: ", premiseWeights.eval()
+            #print "premise weights shape: ", premiseWeights.shape.eval()
+            #print "premise weights: ", premiseWeights.eval()
 
             premiseWeights = premiseWeights.dimshuffle(1, 0, 2) # (numSample, timestep, dimHidden)
 
             Mt = T.tanh(WyY + premiseWeights) # Modify here (11)
 
             #print "Mt: ", Mt.eval()
-            print "Mt shape: ", Mt.shape.eval()
-            print "Mt: ", Mt.eval()
+            #print "Mt shape: ", Mt.shape.eval()
+            #print "Mt: ", Mt.eval()
 
-            print "w shape: ", self.w.shape.eval()
-            print "w: ", np.asarray(self.w.eval())
+            #print "w shape: ", self.w.shape.eval()
+            #print "w: ", np.asarray(self.w.eval())
 
-            print "Mtw dotted shape: ", T.dot(Mt, self.w).shape.eval()
+            #print "Mtw dotted shape: ", T.dot(Mt, self.w).shape.eval()
 
-            print "Mtw dotted/flattened shape: ", T.dot(Mt, self.w).flatten(2).shape.eval()
+            #print "Mtw dotted/flattened shape: ", T.dot(Mt, self.w).flatten(2).shape.eval()
             alphat = T.nnet.softmax(T.dot(Mt, self.w).flatten(2)) # Hackery to make into 2d tensor of (numSamp, timestep)
 
-            print "Alpha: ", alphat.eval()
-            print "Alpha shape: ", alphat.shape.eval()
+            #print "Alpha: ", alphat.eval()
+            #print "Alpha shape: ", alphat.shape.eval()
 
             Y = Y.dimshuffle(0, 2, 1)
 
-            print "Y shape: ", Y.shape.eval()
+            #print "Y shape: ", Y.shape.eval()
 
             rtOut, updates = theano.scan(fn=lambda Yt, alphat: T.dot(Yt, alphat),
                                     outputs_info=None, sequences=[Y, alphat],
                                     non_sequences=None)
 
             rtOut = rtOut.T
-            print "Rtout: ", rtOut.eval()
-            print "Rtout shape: ", rtOut.shape.eval()
+            #print "Rtout: ", rtOut.eval()
+            #print "Rtout shape: ", rtOut.shape.eval()
 
-            print "Dot shape: ", T.dot(self.W_t, r_t).shape.eval()
-            print "Dot : ", T.dot(self.W_t, r_t).eval()
+            #print "Dot shape: ", T.dot(self.W_t, r_t).shape.eval()
+            #print "Dot : ", T.dot(self.W_t, r_t).eval()
 
             r_t = rtOut + T.tanh(T.dot(self.W_t, r_t))
 
-            print "r_t shape: ", r_t.shape.eval()
-            print "R_t: ", np.asarray(r_t.eval())
+            #print "r_t shape: ", r_t.shape.eval()
+            #print "R_t: ", np.asarray(r_t.eval())
             #r_t = r_t.T
 
             # Shuffle back to original orientation so next iteration doesn't die
@@ -475,13 +476,13 @@ class HiddenLayer(object):
 
         WxHn = T.dot(finalHypothesisOutput, self.W_x)
 
-        print "WxHn: ", WxHn.eval()
-        print "WxHn shape : ", WxHn.shape.eval()
+        #print "WxHn: ", WxHn.eval()
+        #print "WxHn shape : ", WxHn.shape.eval()
 
         WpR = T.dot(self.W_p, r_t).T
 
-        print "WpR: ", WpR.eval()
-        print "WpR shape : ", WpR.shape.eval()
+        #print "WpR: ", WpR.eval()
+        #print "WpR shape : ", WpR.shape.eval()
 
         hstar = T.tanh(WxHn + WpR)
 

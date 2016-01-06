@@ -216,13 +216,17 @@ class LSTMP2H(object):
 
 
     def trainFunc(self, inputPremise, inputHypothesis, yTarget, learnRate, gradMax,
-                  L2regularization, dropoutRate, sentenceAttention, batchSize, optimizer="rmsprop"):
+                  L2regularization, dropoutRate, sentenceAttention, wordwiseAttention,
+                  batchSize, optimizer="rmsprop"):
         """
         Defines theano training function for layer, including forward runs and backpropagation.
         Takes as input the necessary symbolic variables.
         """
         if sentenceAttention:
             self.hiddenLayerHypothesis.initSentAttnParams()
+
+        if wordwiseAttention:
+            self.hiddenLayerHypothesis.initWordwiseAttnParams()
 
         self.hiddenLayerPremise.forwardRun(inputPremise, timeSteps=self.numTimestepsPremise) # Set numtimesteps here
         premiseOutputVal = self.hiddenLayerPremise.finalOutputVal
@@ -233,6 +237,7 @@ class LSTMP2H(object):
                                     inputHypothesis, yTarget, "hypothesis",
                                     L2regularization, dropoutRate, self.hiddenLayerPremise.allOutputs, batchSize,
                                     sentenceAttention=sentenceAttention,
+                                    wordwiseAttention=wordwiseAttention,
                                     numTimestepsHypothesis=self.numTimestepsHypothesis,
                                     numTimestepsPremise=self.numTimestepsPremise)
 
@@ -288,7 +293,8 @@ class LSTMP2H(object):
         fGradSharedHypothesis, fGradSharedPremise, fUpdatePremise, \
             fUpdateHypothesis, costFn, _, _ = self.trainFunc(inputPremise,
                                             inputHypothesis, yTarget, learnRate, gradMax,
-                                            L2regularization, dropoutRate, sentenceAttention, batchSize)
+                                            L2regularization, dropoutRate, sentenceAttention,
+                                            wordwiseAttention, batchSize)
 
         totalExamples = 0
         stats = Stats(self.logger)
