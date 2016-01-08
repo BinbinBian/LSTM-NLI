@@ -13,7 +13,7 @@ import time
 
 from model.embeddings import EmbeddingTable
 from model.layers import HiddenLayer
-from model.network import Network
+from model.lstmp2h import LSTMP2H
 from util.utils import convertLabelsToMat, computeParamNorms
 
 dataPath = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/"
@@ -208,8 +208,8 @@ def testSGD():
         print name, ": ", param.eval()
 
 
-def testNetworkSetup():
-    network = Network()
+def testLSTMP2HSetup():
+    network = LSTMP2H()
     network.hiddenLayerHypothesis.params["biasO_premiseLayer"] += T.as_tensor_variable(np.array([1, 2]))
     network.hiddenLayerPremise.printParams()
     network.hiddenLayerHypothesis.printParams()
@@ -219,7 +219,7 @@ def testParamsBackPropUpdate():
     """
     Test to ensure that the parameters of premise are updated after backprop.
     """
-    network = Network()
+    network = LSTMP2H()
     network.train()
 
 
@@ -227,7 +227,7 @@ def testPredictFunc():
     """
     Test the network predict function
     """
-    network = Network()
+    network = LSTMP2H()
 
     symPremise = T.dtensor3("inputPremise")
     symHypothesis = T.dtensor3("inputHypothesis")
@@ -286,10 +286,10 @@ def testSNLIExample():
     premiseSent = premiseTensor[:, 0:3, :]
     hypothesisSent = hypothesisTensor[:, 0:3, :]
 
-    network = Network(numTimestepsPremise=57, numTimestepsHypothesis=30,
+    network = LSTMP2H(numTimestepsPremise=57, numTimestepsHypothesis=30,
                       dimInput=10, embedData="/Users/mihaileric/Documents/Research/"
                                              "LSTM-NLI/data/glove.6B.50d.txt.gz")
-    network.printNetworkParams()
+    network.printLSTMP2HParams()
 
     predictFunc = network.predictFunc(symPremise, symHypothesis)
     labels = network.predict(premiseSent, hypothesisSent, predictFunc)
@@ -313,17 +313,17 @@ logPath = "/Users/mihaileric/Documents/Research/LSTM-NLI/log/runOutput"
 
 def testTrainFunctionality():
     start = time.time()
-    network = Network(embedData, trainData, trainDataStats, valData, valDataStats, testData,
+    network = LSTMP2H(embedData, trainData, trainDataStats, valData, valDataStats, testData,
                 testDataStats, logPath, dimInput=100, dimHidden=256,
                 numTimestepsPremise=10, numTimestepsHypothesis=10)
-    network.train(numEpochs=17, batchSize=10, learnRateVal=0.0007, numExamplesToTrain=30,
+    network.train(numEpochs=14, batchSize=10, learnRateVal=0.0007, numExamplesToTrain=30,
                     gradMax=3., L2regularization=0., dropoutRate=1.,
-                    sentenceAttention=False)
+                    sentenceAttention=False, wordwiseAttention=False)
     print "Total time for training functionality test: {0}".format(time.time() - start)
 
 
 def testExtractParamsAndSaveModel():
-    network = Network(numTimestepsPremise=57, numTimestepsHypothesis=30,
+    network = LSTMP2H(numTimestepsPremise=57, numTimestepsHypothesis=30,
                       dimInput=50, embedData=embedData, trainData=trainData,
                     trainLabels=trainLabels, trainDataStats=trainDataStats,
                     valData=valData, valDataStats=valDataStats, valLabels=valLabels)
@@ -332,22 +332,22 @@ def testExtractParamsAndSaveModel():
 
 
 def testSaveLoadModel():
-    network = Network(numTimestepsPremise=57, numTimestepsHypothesis=30,
+    network = LSTMP2H(numTimestepsPremise=57, numTimestepsHypothesis=30,
                       dimInput=50, embedData=embedData, trainData=trainData,
                     trainDataStats=trainDataStats,
                     valData=valData, valDataStats=valDataStats)
     network.train()
 
-    network2 = Network(numTimestepsPremise=57, numTimestepsHypothesis=30,
+    network2 = LSTMP2H(numTimestepsPremise=57, numTimestepsHypothesis=30,
                       dimInput=50, embedData=embedData, trainData=trainData,
                     trainLabels=trainLabels, trainDataStats=trainDataStats,
                     valData=valData, valDataStats=valDataStats, valLabels=valLabels)
     network2.loadModel("basicLSTM_batch=5,epoch=1,learnR=0.1.npz")
-    network2.printNetworkParams()
+    network2.printLSTMP2HParams()
 
 
 def testAccuracyComputation():
-    network = Network(numTimestepsPremise=57, numTimestepsHypothesis=30,
+    network = LSTMP2H(numTimestepsPremise=57, numTimestepsHypothesis=30,
                       dimInput=50, embedData=embedData, trainData=trainData,
                     trainLabels=trainLabels, trainDataStats=trainDataStats,
                     valData=valData, valDataStats=valDataStats, valLabels=valLabels)
@@ -403,24 +403,59 @@ def testDropout():
 def testSentenceAttention():
     hLayer = HiddenLayer(2, 2, 2, "testHidden", False)
     hLayer.initSentAttnParams()
-    inputMat = T.as_tensor_variable(np.arange(16).reshape(4,2,2).astype(np.float32)) #(numTimeSteps, numSamples, dimHidden)
+    inputMat = T.as_tensor_variable(np.arange(16).reshape(4, 2, 2).astype(np.float32)) #(numTimeSteps, numSamples, dimHidden)
     modelOut, updates = hLayer.forwardRun(inputMat, 4)
-    finalHoutput = hLayer.finalHiddenVal
+    finalHoutput = hLayer.finalOutputVal
 
     hstar = hLayer.applySentenceAttention(modelOut[0], finalHoutput, 4)
+    print "Hstar: ", hstar.eval()
 
-    inputMat = T.as_tensor_variable(np.arange(6).reshape(3,1,2).astype(np.float32)) #(numTimeSteps, numSamples, dimHidden)
+    inputMat = T.as_tensor_variable(np.arange(6).reshape(3, 1, 2).astype(np.float32)) #(numTimeSteps, numSamples, dimHidden)
     modelOut, updates = hLayer.forwardRun(inputMat, 3)
-    finalHoutput = hLayer.finalHiddenVal
+    finalHoutput = hLayer.finalOutputVal
 
     hstar = hLayer.applySentenceAttention(modelOut[0], finalHoutput, 3)
 
-    inputMat = T.as_tensor_variable(np.arange(8).reshape(4,1,2).astype(np.float32)) #(numTimeSteps, numSamples, dimHidden)
+    inputMat = T.as_tensor_variable(np.arange(8).reshape(4, 1, 2).astype(np.float32)) #(numTimeSteps, numSamples, dimHidden)
     modelOut, updates = hLayer.forwardRun(inputMat, 4)
-    finalHoutput = hLayer.finalHiddenVal
+    finalHoutput = hLayer.finalOutputVal
 
     hstar = hLayer.applySentenceAttention(modelOut[0], finalHoutput, 4)
 
+
+
+def testWordwiseAttention():
+    hLayer = HiddenLayer(2, 2, 2, "testHidden", False)
+    hLayer.initWordwiseAttnParams()
+    inputMat = T.as_tensor_variable(np.arange(16).reshape(4, 2, 2).astype(np.float32)) #(numTimeSteps, numSamples, dimHidden)
+    modelOut, updates = hLayer.forwardRun(inputMat, 4)
+    finalHoutput = hLayer.finalOutputVal
+
+    hstar = hLayer.applyWordwiseAttention(modelOut[0], modelOut[0], finalHoutput, 2, 4, 4)
+    print "Hstar: ", hstar.eval()
+
+
+    inputMat = T.as_tensor_variable(np.arange(6).reshape(3, 1, 2).astype(np.float32)) #(numTimeSteps, numSamples, dimHidden)
+    modelOut, updates = hLayer.forwardRun(inputMat, 3)
+    finalHoutput = hLayer.finalOutputVal
+
+    hstar = hLayer.applyWordwiseAttention(modelOut[0], modelOut[0], finalHoutput, 1, 3, 3)
+    print "Hstar: ", hstar.eval()
+
+    inputMat = T.as_tensor_variable(np.arange(8).reshape(4, 1, 2).astype(np.float32)) #(numTimeSteps, numSamples, dimHidden)
+    modelOut, updates = hLayer.forwardRun(inputMat, 4)
+    finalHoutput = hLayer.finalOutputVal
+
+    hstar = hLayer.applyWordwiseAttention(modelOut[0], modelOut[0], finalHoutput, 1, 4, 4)
+    print "hstar: ", hstar.eval()
+
+
+    inputMat = T.as_tensor_variable(np.arange(8).reshape(4, 1, 2).astype(np.float32)) #(numTimeSteps, numSamples, dimHidden)
+    modelOut, updates = hLayer.forwardRun(inputMat, 4)
+    finalHoutput = hLayer.finalOutputVal
+
+    hstar = hLayer.applyWordwiseAttention(modelOut[0], modelOut[0][0:3], finalHoutput, 1, 4, 3)
+    print "hstar: ", hstar.eval()
 
 if __name__ == "__main__":
   #testLabelsMat()
@@ -436,7 +471,7 @@ if __name__ == "__main__":
   #testCostFuncPipeline()
   #testGradComputation()
    # testSGD()
-   #testNetworkSetup()
+   #testLSTMP2HSetup()
    #testParamsBackPropUpdate()
    #testPredictFunc()
    #testSNLIExample()
@@ -450,3 +485,4 @@ if __name__ == "__main__":
    #testRegularization()
     #testDropout()
    #testSentenceAttention()
+    #testWordwiseAttention()

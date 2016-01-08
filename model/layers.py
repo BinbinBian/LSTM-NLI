@@ -19,6 +19,8 @@ normal = GaussianDefaultInitializer()
 logger = Logger(log_path="/Users/mihaileric/Documents/Research/LSTM-NLI/log/"
                          "experimentLog.txt")
 
+# TODO: Refactor so that initialization of params is provided as an option
+
 class HiddenLayer(object):
     def __init__(self, dimInput, dimHiddenState, dimEmbedding, layerName, dropoutMode, numCategories=3):
         """
@@ -43,8 +45,6 @@ class HiddenLayer(object):
         # Initialization values for hidden layer compute unit parameters
         self.outputInit = None
         self.cellStateInit = None
-
-        # TODO: what to use for initializing parameters (random?) , Addendum: Kaiming He initialization!!!
 
         # Parameters for projecting from embedding size to input dimension
         self.b_toInput = theano.shared(normal((1, dimInput)), name="biasToInput_"+layerName,
@@ -237,6 +237,8 @@ class HiddenLayer(object):
                                 name="layers",
                                 n_steps=timeSteps)
 
+        # Store the outputs for all timesteps as attribute
+        self.allOutputs = timestepOut[0]
 
         self.finalCellState = timestepOut[1][-1]
         self.finalOutputVal = timestepOut[0][-1]
@@ -253,23 +255,14 @@ class HiddenLayer(object):
         return catOutput
 
 
-    # TODO: Incorporate this function into other ones
-    def applySoftmax(self, catOutput):
-        """
-        Apply softmax to final vector of outputs
-        :return:
-        """
-        softmaxOut = T.nnet.softmax(catOutput)
-        return softmaxOut
-
-
-    def computeCrossEntropyCost(self, yPred, yTarget):
+    def computeCrossEntropyCost(self, catOutput, yTarget):
         """
         Given predictions returned through softmax projection, compute
         cross entropy cost
         :param yPred: Output from LSTM with softmax applied
         :return: Loss for given predictions and targets
         """
+        yPred = T.nnet.softmax(catOutput)
         return T.nnet.categorical_crossentropy(yPred, yTarget).mean()
 
 
@@ -326,9 +319,8 @@ class HiddenLayer(object):
         self.params["weightsWp_"+self.layerName] = self.W_p
         self.params["weightsAlphasoftmax_"+self.layerName] = self.w
 
+
         # TODO: May want to add params to self.LSTMparams for L2 regularization
-
-
     def applySentenceAttention(self, premiseOutputs, finalHypothesisOutput, numTimestepsPremise):
         """
         Apply sentence level attention by attending over all premise outputs
@@ -363,9 +355,143 @@ class HiddenLayer(object):
         return hstar
 
 
+    def initWordwiseAttnParams(self):
+        """
+        Initializes parameters for wordwise attention if specified as part
+        of model.
+        :return:
+        """
+        self.initSentAttnParams()
+        self.W_r = theano.shared(normal((self.dimHidden,
+                                               self.dimHidden)),
+                                               name="weightsWr_"+self.layerName)
+        self.W_t = theano.shared(normal((self.dimHidden,
+                                               self.dimHidden)),
+                                               name="weightsWt_"+self.layerName)
+
+    
+    # TODO: Get rid of print statements after testing on entire corpus and getting reasonable results
+    def applyWordwiseAttention(self, premiseOutputs, hypothesisOutputs,
+                               finalHypothesisOutput, batchSize,
+                               numTimestepsPremise, numTimestepsHypothesis):
+        """
+        Apply word-by-word attention as described in 2.4 of Rocktaschel paper
+        :param premiseOutputs:
+        :param hypothesisOutputs:
+        :param finalHypothesisOutput:
+        :param numTimestepsPremise:
+        :return:
+        """
+        timestep, numSamp, dimHidden = premiseOutputs.shape
+        Y = premiseOutputs.reshape((numSamp, timestep, dimHidden))
+
+        #print "Y shape beginning: ", Y.shape.eval()
+
+        WyY = T.dot(Y, self.W_y) # Computing (WyY).T
+
+        # TODO: How to initialize r_{t-1} -- probably not right
+        r_t = theano.shared(normal((self.dimHidden, batchSize)), name="rt_"+self.layerName)
+
+        #print "WyY: ", WyY.eval()
+        # Iterate over hypothesis vector for every timestep
+        for t in range(numTimestepsHypothesis):
+            #print "-" * 100
+            #print "Iter: ", t
+            ht = hypothesisOutputs[t]
+            #print "ht: ", ht.eval()
+            #print "ht shape: ", ht.shape.eval()
+
+            transformedHt = (T.dot(self.W_h, ht.T)).T # Modify here (11)
+
+            #print "tranformed Ht: ", transformedHt.eval()
+            #print "transformed ht shape: ", transformedHt.shape.eval()
+
+            #print "Wr shape: ", self.W_r.shape.eval()
+            #print "Wr: ", np.asarray(self.W_r.eval())
+
+            #print "R_t shape: ", r_t.shape.eval()
+            #print "R_t: ", np.asarray(r_t.eval())
+
+            WrRt = (T.dot(self.W_r, r_t)).T # r_t.T?
+
+            #print "WrRt: ", WrRt.eval()
+            #print "WrRt shape: ", WrRt.shape.eval()
+            #print "WrRt: ", WrRt.eval()
+
+            transformedHtRt = transformedHt + WrRt
+
+            #print "tranformed HtRt: ", transformedHtRt.eval()
+            #print "transformed HtRt shape: ", transformedHtRt.shape.eval()
+            #print "transformed HtRt : ", transformedHtRt.eval()
+
+            premiseWeights = [transformedHtRt] * numTimestepsPremise
+            # TODO: Condense this later if it works
+            premiseWeights = T.stacklists(premiseWeights)
+            #print "Premise weights: ", premiseWeights.eval()
+            #print "premise weights shape: ", premiseWeights.shape.eval()
+            #print "premise weights: ", premiseWeights.eval()
+
+            premiseWeights = premiseWeights.dimshuffle(1, 0, 2) # (numSample, timestep, dimHidden)
+
+            Mt = T.tanh(WyY + premiseWeights) # Modify here (11)
+
+            #print "Mt: ", Mt.eval()
+            #print "Mt shape: ", Mt.shape.eval()
+            #print "Mt: ", Mt.eval()
+
+            #print "w shape: ", self.w.shape.eval()
+            #print "w: ", np.asarray(self.w.eval())
+
+            #print "Mtw dotted shape: ", T.dot(Mt, self.w).shape.eval()
+
+            #print "Mtw dotted/flattened shape: ", T.dot(Mt, self.w).flatten(2).shape.eval()
+            alphat = T.nnet.softmax(T.dot(Mt, self.w).flatten(2)) # Hackery to make into 2d tensor of (numSamp, timestep)
+
+            #print "Alpha: ", alphat.eval()
+            #print "Alpha shape: ", alphat.shape.eval()
+
+            Y = Y.dimshuffle(0, 2, 1)
+
+            #print "Y shape: ", Y.shape.eval()
+
+            rtOut, updates = theano.scan(fn=lambda Yt, alphat: T.dot(Yt, alphat),
+                                    outputs_info=None, sequences=[Y, alphat],
+                                    non_sequences=None)
+
+            rtOut = rtOut.T
+            #print "Rtout: ", rtOut.eval()
+            #print "Rtout shape: ", rtOut.shape.eval()
+
+            #print "Dot shape: ", T.dot(self.W_t, r_t).shape.eval()
+            #print "Dot : ", T.dot(self.W_t, r_t).eval()
+
+            r_t = rtOut + T.tanh(T.dot(self.W_t, r_t))
+
+            #print "r_t shape: ", r_t.shape.eval()
+            #print "R_t: ", np.asarray(r_t.eval())
+            #r_t = r_t.T
+
+            # Shuffle back to original orientation so next iteration doesn't die
+            Y = Y.dimshuffle(0, 2, 1)
+
+        WxHn = T.dot(finalHypothesisOutput, self.W_x)
+
+        #print "WxHn: ", WxHn.eval()
+        #print "WxHn shape : ", WxHn.shape.eval()
+
+        WpR = T.dot(self.W_p, r_t).T
+
+        #print "WpR: ", WpR.eval()
+        #print "WpR shape : ", WpR.shape.eval()
+
+        hstar = T.tanh(WxHn + WpR)
+
+        return hstar
+
+
     def costFunc(self, inputPremise, inputHypothesis, yTarget, layer, L2regularization,
-                 dropoutRate, sentenceAttention=False, numTimestepsHypothesis=1,
-                 numTimestepsPremise=1):
+                 dropoutRate, premiseOutputs, batchSize, sentenceAttention=False, wordwiseAttention=False,
+                 numTimestepsHypothesis=1, numTimestepsPremise=1):
         """
         Compute end-to-end cost function for a collection of input data.
         :param layer: whether we are doing a forward computation in the
@@ -380,16 +506,22 @@ class HiddenLayer(object):
 
         # Apply sentence level attention -- notation consistent with paper
         if sentenceAttention:
-            hstar = self.applySentenceAttention(timestepOut[0], self.finalOutputVal,
+            hstar = self.applySentenceAttention(premiseOutputs, self.finalOutputVal,
                                                 numTimestepsPremise)
+            self.finalOutputVal = hstar
+
+        # Apply word by word attention
+        if wordwiseAttention:
+            hstar = self.applyWordwiseAttention(premiseOutputs, timestepOut[0],
+                                                self.finalOutputVal, batchSize,
+                                                numTimestepsPremise, numTimestepsHypothesis)
             self.finalOutputVal = hstar
 
         # Apply dropout here before projecting to categories? apply to finalOutputVal
         self.finalOutputVal = self.applyDropout(self.finalOutputVal, self.dropoutMode,
                                                 dropoutRate)
         catOutput = self.projectToCategories()
-        softmaxOut = self.applySoftmax(catOutput)
-        cost = self.computeCrossEntropyCost(softmaxOut, yTarget)
+        cost = self.computeCrossEntropyCost(catOutput, yTarget)
 
         # Get params specific to cell and add L2 regularization to cost
         LSTMparams = [self.params[cParam] for cParam in self.LSTMcellParams]

@@ -24,9 +24,9 @@ np.random.seed(SEED)
 currDir = os.path.dirname(os.path.dirname(__file__))
 
 
-class Network(object):
+class LSTMP2H(object):
     """
-    Represents entire network.
+    Represents single layer premise LSTM to hypothesis LSTM network.
     """
     def __init__(self, embedData, trainData, trainDataStats, valData, valDataStats,
                  testData, testDataStats, logPath, dimHidden=2,
@@ -92,6 +92,9 @@ class Network(object):
         stored in model variable
         """
         for paramName, paramVar in self.hiddenLayerHypothesis.params.iteritems():
+            self.numericalParams[paramName] = paramVar.get_value()
+
+        for paramName, paramVar in self.hiddenLayerPremise.params.iteritems():
             self.numericalParams[paramName] = paramVar.get_value()
 
 
@@ -216,13 +219,17 @@ class Network(object):
 
 
     def trainFunc(self, inputPremise, inputHypothesis, yTarget, learnRate, gradMax,
-                  L2regularization, dropoutRate, sentenceAttention, optimizer="rmsprop"):
+                  L2regularization, dropoutRate, sentenceAttention, wordwiseAttention,
+                  batchSize, optimizer="rmsprop"):
         """
         Defines theano training function for layer, including forward runs and backpropagation.
         Takes as input the necessary symbolic variables.
         """
         if sentenceAttention:
             self.hiddenLayerHypothesis.initSentAttnParams()
+
+        if wordwiseAttention:
+            self.hiddenLayerHypothesis.initWordwiseAttnParams()
 
         self.hiddenLayerPremise.forwardRun(inputPremise, timeSteps=self.numTimestepsPremise) # Set numtimesteps here
         premiseOutputVal = self.hiddenLayerPremise.finalOutputVal
@@ -231,7 +238,9 @@ class Network(object):
         self.hiddenLayerHypothesis.setInitialLayerParams(premiseOutputVal, premiseOutputCellState)
         cost, costFn = self.hiddenLayerHypothesis.costFunc(inputPremise,
                                     inputHypothesis, yTarget, "hypothesis",
-                                    L2regularization, dropoutRate, sentenceAttention=sentenceAttention,
+                                    L2regularization, dropoutRate, self.hiddenLayerPremise.allOutputs, batchSize,
+                                    sentenceAttention=sentenceAttention,
+                                    wordwiseAttention=wordwiseAttention,
                                     numTimestepsHypothesis=self.numTimestepsHypothesis,
                                     numTimestepsPremise=self.numTimestepsPremise)
 
@@ -253,7 +262,8 @@ class Network(object):
 
 
     def train(self, numEpochs=1, batchSize=5, learnRateVal=0.1, numExamplesToTrain=-1, gradMax=3.,
-                L2regularization=0.0, dropoutRate=0.0, sentenceAttention=False):
+                L2regularization=0.0, dropoutRate=0.0, sentenceAttention=False,
+                wordwiseAttention=False):
         """
         Takes care of training model, including propagation of errors and updating of
         parameters.
@@ -286,7 +296,8 @@ class Network(object):
         fGradSharedHypothesis, fGradSharedPremise, fUpdatePremise, \
             fUpdateHypothesis, costFn, _, _ = self.trainFunc(inputPremise,
                                             inputHypothesis, yTarget, learnRate, gradMax,
-                                            L2regularization, dropoutRate, sentenceAttention)
+                                            L2regularization, dropoutRate, sentenceAttention,
+                                            wordwiseAttention, batchSize)
 
         totalExamples = 0
         stats = Stats(self.logger)
@@ -390,7 +401,7 @@ class Network(object):
                                 self.hiddenLayerHypothesis.finalOutputVal, self.dropoutMode,
                                 dropoutRate)
         catOutput = self.hiddenLayerHypothesis.projectToCategories()
-        softMaxOut = self.hiddenLayerHypothesis.applySoftmax(catOutput)
+        softMaxOut = T.nnet.softmax(catOutput)
 
         labelIdx = softMaxOut.argmax(axis=1)
 

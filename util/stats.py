@@ -22,6 +22,7 @@ class Stats(object):
         self.totalNumEx = 0
 
 
+    # TODO: Refactor this into a single method
     def recordDevAcc(self, numEx, acc):
         self.devAcc.append((numEx, acc))
         self.logger.Log("Current dev accuracy after {0} examples: {1}".\
