@@ -1,5 +1,5 @@
 # Create a script to run a random hyperparameter search.
-
+import argparse
 import copy
 import random
 import numpy as np
@@ -7,6 +7,12 @@ import os
 
 LIN = "LIN"
 EXP = "EXP"
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--host", type=str, default="", help="specific machine to run on")
+parser.add_argument("--queue", type=str, default="jag")
+args = parser.parse_args()
+
 
 # Instructions: Configure the variables in this block, then run
 # the following on a machine with qsub access:
@@ -47,7 +53,7 @@ SWEEP_PARAMETERS = {
 }
 
 sweep_runs = 6
-queue = "jag"
+queue = args.queue
 
 # - #
 print "# NUM RUNS: " + str(sweep_runs)
@@ -101,6 +107,10 @@ for run_id in range(sweep_runs):
     experimentName = "sweep_snli_" + batchSize + "_" + numEpochs + "_" + dimHidden + "_" + learnRate + "_" + L2reg + "_" + dropoutRate
     logPath = os.getcwd() + "/log/" + experimentName + ".log"
     flags += " --logPath" + " " + logPath
-
-    print "export LSTM_NLI_FLAGS=\"" + flags + "\"; qsub -v LSTM_NLI_FLAGS train_LSTM_NLI.sh -q " + queue
+    
+    host = ""    
+    if args.host != "":
+        host = "-l host=" + args.host
+    
+    print "export LSTM_NLI_FLAGS=\"" + flags + "\"; qsub -v LSTM_NLI_FLAGS train_LSTM_NLI.sh " + host + " -q " + queue
     print
