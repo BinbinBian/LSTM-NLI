@@ -353,7 +353,7 @@ class LSTMP2H(object):
                     self.dropoutMode.set_value(0.)
                     devAccuracy = self.computeAccuracy(valPremiseIdxMat,
                                     valHypothesisIdxMat, valGoldLabel, predictFunc)
-                    stats.recordDevAcc(totalExamples, devAccuracy)
+                    stats.recordAcc(totalExamples, devAccuracy, "dev")
 
 
         stats.recordFinalTrainingTime(totalExamples)

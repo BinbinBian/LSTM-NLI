@@ -14,6 +14,8 @@ import time
 from model.embeddings import EmbeddingTable
 from model.layers import HiddenLayer
 from model.lstmp2h import LSTMP2H
+from util.afs_safe_logger import Logger
+from util.stats import Stats
 from util.utils import convertLabelsToMat, computeParamNorms
 
 dataPath = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/"
@@ -316,8 +318,8 @@ def testTrainFunctionality():
     network = LSTMP2H(embedData, trainData, trainDataStats, valData, valDataStats, testData,
                 testDataStats, logPath, dimInput=100, dimHidden=256,
                 numTimestepsPremise=10, numTimestepsHypothesis=10)
-    network.train(numEpochs=14, batchSize=10, learnRateVal=0.0007, numExamplesToTrain=30,
-                    gradMax=3., L2regularization=0., dropoutRate=1.,
+    network.train(numEpochs=60, batchSize=10, learnRateVal=0.0007, numExamplesToTrain=30,
+                    gradMax=3., L2regularization=0.0, dropoutRate=1.0,
                     sentenceAttention=False, wordwiseAttention=False)
     print "Total time for training functionality test: {0}".format(time.time() - start)
 
@@ -457,6 +459,19 @@ def testWordwiseAttention():
     hstar = hLayer.applyWordwiseAttention(modelOut[0], modelOut[0][0:3], finalHoutput, 1, 4, 3)
     print "hstar: ", hstar.eval()
 
+
+def testStats():
+    logger = Logger(log_path=logPath)
+    stats = Stats(logger)
+
+    stats.recordAcc(10, 0.3, "train")
+    stats.recordAcc(20, 0.1, "train")
+    stats.recordAcc(10, 1.3, "dev")
+    stats.recordAcc(40, 0.344, "test")
+
+    print stats.acc
+
+
 if __name__ == "__main__":
   #testLabelsMat()
   # testEmbeddings()
@@ -486,3 +501,4 @@ if __name__ == "__main__":
     #testDropout()
    #testSentenceAttention()
     #testWordwiseAttention()
+    #testStats()

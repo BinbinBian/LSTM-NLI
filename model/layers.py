@@ -369,7 +369,7 @@ class HiddenLayer(object):
                                                self.dimHidden)),
                                                name="weightsWt_"+self.layerName)
 
-    
+
     # TODO: Get rid of print statements after testing on entire corpus and getting reasonable results
     def applyWordwiseAttention(self, premiseOutputs, hypothesisOutputs,
                                finalHypothesisOutput, batchSize,
