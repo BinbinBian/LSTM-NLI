@@ -403,7 +403,7 @@ def testDropout():
 
 
 def testSentenceAttention():
-    hLayer = HiddenLayer(2, 2, 2, "testHidden", False)
+    hLayer = HiddenLayer(3, 5, 2, "testHidden", False)
     hLayer.initSentAttnParams()
     inputMat = T.as_tensor_variable(np.arange(16).reshape(4, 2, 2).astype(np.float32)) #(numTimeSteps, numSamples, dimHidden)
     modelOut, updates = hLayer.forwardRun(inputMat, 4)
@@ -417,13 +417,22 @@ def testSentenceAttention():
     finalHoutput = hLayer.finalOutputVal
 
     hstar = hLayer.applySentenceAttention(modelOut[0], finalHoutput, 3)
+    print "Hstar: ", hstar.eval()
 
     inputMat = T.as_tensor_variable(np.arange(8).reshape(4, 1, 2).astype(np.float32)) #(numTimeSteps, numSamples, dimHidden)
     modelOut, updates = hLayer.forwardRun(inputMat, 4)
     finalHoutput = hLayer.finalOutputVal
 
     hstar = hLayer.applySentenceAttention(modelOut[0], finalHoutput, 4)
+    print "Hstar: ", hstar.eval()
 
+    hLayer = HiddenLayer(13, 7, 5, "testHidden", False)
+    hLayer.initSentAttnParams()
+    inputMat = T.as_tensor_variable(np.arange(30).reshape(2, 3, 5).astype(np.float32)) #(numTimeSteps, numSamples, dimHidden)
+    modelOut, updates = hLayer.forwardRun(inputMat, 2)
+    finalHoutput = hLayer.finalOutputVal
+    hstar = hLayer.applySentenceAttention(modelOut[0], finalHoutput, 2)
+    print "Hstar prime: ", hstar.eval()
 
 
 def testWordwiseAttention():
@@ -492,13 +501,13 @@ if __name__ == "__main__":
    #testSNLIExample()
    #testConvertToIdxMatrices()
    #testConvertIdxMatToIdxTensor()
-   testTrainFunctionality()
+   #testTrainFunctionality()
    #testExtractParamsAndSaveModel()
    #testSaveLoadModel()
    #testAccuracyComputation()
    #testDeterministicParams()
    #testRegularization()
     #testDropout()
-   #testSentenceAttention()
+   testSentenceAttention()
     #testWordwiseAttention()
     #testStats()
