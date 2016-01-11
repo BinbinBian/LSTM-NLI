@@ -1,6 +1,3 @@
-""" Defines the entire network
-"""
-
 import layers
 import numpy as np
 import os
@@ -46,6 +43,7 @@ class LSTMP2H(object):
         self.embeddingTable = EmbeddingTable(embedData)
 
         # Paths to all data files
+        # TODO: will want to put these in Network base class
         self.trainData = trainData
         self.trainDataStats = trainDataStats
         self.valData = valData
@@ -72,7 +70,7 @@ class LSTMP2H(object):
 
         self.buildModel()
 
-
+    # TODO: Will already be in base class
     def printNetworkParams(self):
         """
         Print all params of network.
@@ -86,6 +84,7 @@ class LSTMP2H(object):
             self.logger.Log("-" * 50)
 
 
+    # TODO: Will already be in base class
     def extractParams(self):
         """
         Extracts the numerical value of the model params and
@@ -98,6 +97,7 @@ class LSTMP2H(object):
             self.numericalParams[paramName] = paramVar.get_value()
 
 
+    # TODO: Will already be in base class
     def saveModel(self, modelFileName):
         """
         Saves the parameters of the model to disk.
@@ -106,6 +106,7 @@ class LSTMP2H(object):
             np.savez(f, **self.numericalParams)
 
 
+    # TODO: Check that this actually works-- I'm skeptical
     def loadModel(self, modelFileName):
         """
         Loads the given model and sets the parameters of the network to the
@@ -138,6 +139,7 @@ class LSTMP2H(object):
                 self.hiddenLayerPremise.params[paramName].set_value(paramVal)
 
 
+    # TODO: Will already be in base class
     def convertIdxToLabel(self, labelIdx):
         """
         Converts an idx to a label from our classification categories.
@@ -154,6 +156,7 @@ class LSTMP2H(object):
         return labelCategories
 
 
+    # TODO: Put this in utils
     @staticmethod
     def convertDataToTrainingBatch(premiseIdxMat, timestepsPremise, hypothesisIdxMat,
                                    timestepsHypothesis, embeddingTable, labels, minibatch):
@@ -174,6 +177,7 @@ class LSTMP2H(object):
         return batchPremiseTensor, batchHypothesisTensor, batchLabels
 
 
+    # TODO: Will already be in base class
     def computeAccuracy(self, dataPremiseMat, dataHypothesisMat, dataTarget,
                         predictFunc):
         """
@@ -199,10 +203,10 @@ class LSTMP2H(object):
         return correctPredictions/numExamples
 
 
+    # TODO: Will already be in base class -- must override
     def buildModel(self):
         """
-        Handles building of model, including initializing necessary parameters, defining
-        loss functions, etc.
+        Handles building of model, including initializing necessary parameters, etc.
         """
         self.hiddenLayerPremise = HiddenLayer(self.dimInput, self.dimHidden,
                                               self.dimEmbedding, "premiseLayer",
@@ -216,6 +220,8 @@ class LSTMP2H(object):
         self.hiddenLayerHypothesis = HiddenLayer(self.dimInput, self.dimHidden,
                                         self.dimEmbedding, "hypothesisLayer",
                                         self.dropoutMode)
+
+        # TODO: add above layers to self.layers
 
 
     def trainFunc(self, inputPremise, inputHypothesis, yTarget, learnRate, gradMax,
@@ -268,8 +274,6 @@ class LSTMP2H(object):
         Takes care of training model, including propagation of errors and updating of
         parameters.
         """
-
-        # TODO: Check that order of elements in Dict is staying consistent, especially when taking grads
 
         self.configs.update(locals())
         # trainPremiseIdxMat, trainHypothesisIdxMat = self.embeddingTable.convertDataToIdxMatrices(
@@ -408,6 +412,7 @@ class LSTMP2H(object):
         return theano.function([symPremise, symHypothesis], labelIdx, name="predictLabelsFunction")
 
 
+    # TODO: Will already be in base class
     def predict(self, premiseSent, hypothesisSent, predictFunc):
         """
         Output Labels for given premise/hypothesis sentences pair.
