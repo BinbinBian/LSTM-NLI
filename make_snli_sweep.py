@@ -37,7 +37,7 @@ FIXED_PARAMETERS = {
     #"dimHidden": "64",
     #"unrollSteps": "20",
     #"clipping_max_value":  "3.0",
-    "batchSize":  "128",
+    "batchSize":  "512",
     "numExamplesToTrain": "-1",
     "numEpochs": "15"
 }

@@ -14,16 +14,10 @@
 cd $PBS_O_WORKDIR
 echo Lauching from working directory: $PBS_O_WORKDIR
 echo Flags: $LSTM_NLI_FLAGS
-#if [[ $1 == 'pick' ]];
-#then
-#    DEVICE=`python pick_gpu.py`
-#else
-#    DEVICE=$1
-#fi
 
-DEVICE=`python pick_gpu.py`
+DEVICE=`device`
 
 # Log what we're running and where.
 echo `hostname` - $PBS_JOBID - $LSTM_NLI_FLAGS - $DEVICE - at `git log --pretty=format:'%h' -n 1` >> ./lstm_nli_machine_assignments.txt
 
-THEANO_FLAGS=allow_gc=False,exception_verbosity=high,cuda.root=/usr/bin/cuda,warn_float64=warn,device=$DEVICE,floatX=float32 python  P2H_LSTM_run.py $LSTM_NLI_FLAGS
+THEANO_FLAGS=allow_gc=False,exception_verbosity=high,cuda.root=/usr/bin/cuda,warn_float64=warn,floatX=float32 python  P2H_LSTM_run.py $LSTM_NLI_FLAGS
