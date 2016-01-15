@@ -37,30 +37,18 @@ class LSTMP2H(Network):
         :param optimizer: Optimization algorithm to use for training. Will
                           eventually support adagrad, etc.
         """
-        super(LSTMP2H, self).__init__(logPath, trainData, trainDataStats, valData,
-                                      valDataStats, testData, testDataStats)
-
+        super(LSTMP2H, self).__init__(embedData, logPath, trainData, trainDataStats, valData,
+                                      valDataStats, testData, testDataStats,
+                                      numTimestepsPremise, numTimestepsHypothesis)
         self.configs = locals()
-
-        self.numTimestepsPremise = numTimestepsPremise
-        self.numTimestepsHypothesis = numTimestepsHypothesis
-        self.embeddingTable = EmbeddingTable(embedData)
-
-        # Dimension of word embeddings at input
-        self.dimEmbedding = self.embeddingTable.dimEmbeddings
 
         # Desired dimension of input to hidden layer
         self.dimInput = dimInput
-
         self.dimHidden = dimHidden
 
         # shared variable to keep track of whether to apply dropout in training/testing
         # 0. = testing; 1. = training
         self.dropoutMode = theano.shared(0.)
-
-        # self.numericalParams = {} # Will store the numerical values of the
-        #                 # theano variables that represent the params of the
-        #                 # model; stored as dict of (name, value) pairs
 
         self.buildModel()
 
@@ -96,31 +84,6 @@ class LSTMP2H(Network):
             # Set premise params
             for paramName, paramVal in premiseParams.iteritems():
                 self.hiddenLayerPremise.params[paramName].set_value(paramVal)
-
-
-    def computeAccuracy(self, dataPremiseMat, dataHypothesisMat, dataTarget,
-                        predictFunc):
-        """
-        Computes the accuracy for the given network on a certain dataset.
-        """
-        numExamples = len(dataTarget)
-        correctPredictions = 0.
-
-        # Arbitrary batch size set
-        minibatches = getMinibatchesIdx(len(dataTarget), 1)
-
-        for _, minibatch in minibatches:
-            batchPremiseTensor, batchHypothesisTensor, batchLabels = \
-                    convertDataToTrainingBatch(dataPremiseMat, self.numTimestepsPremise, dataHypothesisMat,
-                                               self.numTimestepsHypothesis, self.embeddingTable,
-                                               dataTarget, minibatch)
-            prediction = predictFunc(batchPremiseTensor, batchHypothesisTensor)
-            batchGoldIdx = [ex.argmax(axis=0) for ex in batchLabels]
-
-            correctPredictions += (np.array(prediction) ==
-                                   np.array(batchGoldIdx)).sum()
-
-        return correctPredictions/numExamples
 
 
     def buildModel(self):

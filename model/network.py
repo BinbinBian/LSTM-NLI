@@ -4,7 +4,9 @@ import theano
 # Hacky way to ensure that theano can find NVCC compiler
 os.environ["PATH"] += ":/usr/local/cuda/bin"
 
+from model.embeddings import EmbeddingTable
 from util.afs_safe_logger import Logger
+from util.utils import convertDataToTrainingBatch, getMinibatchesIdx
 
 # Set random seed for deterministic runs
 SEED = 100
@@ -17,8 +19,8 @@ class Network(object):
     """
     Generic network class from which other specific model architectures will inherit.
     """
-    def __init__(self, logPath, trainData, trainDataStats, valData, valDataStats,
-                 testData, testDataStats):
+    def __init__(self, embedData, logPath, trainData, trainDataStats, valData, valDataStats,
+                 testData, testDataStats, numTimestepsPremise, numTimestepsHypothesis):
 
         self.logger = Logger(log_path=logPath)
         # All layers in model
@@ -30,6 +32,13 @@ class Network(object):
         self.valDataStats = valDataStats
         self.testData = testData
         self.testDataStats = testDataStats
+
+        self.numTimestepsPremise = numTimestepsPremise
+        self.numTimestepsHypothesis = numTimestepsHypothesis
+
+        self.embeddingTable = EmbeddingTable(embedData)
+        # Dimension of word embeddings at input
+        self.dimEmbedding = self.embeddingTable.dimEmbeddings
 
         self.numericalParams = {} # Will store the numerical values of the
                         # theano variables that represent the params of the
@@ -96,6 +105,31 @@ class Network(object):
         self.logger.Log("Labels of examples: {0}".format(labelCategories))
 
         return labelCategories
+
+
+    def computeAccuracy(self, dataPremiseMat, dataHypothesisMat, dataTarget,
+                        predictFunc):
+        """
+        Computes the accuracy for the given network on a certain dataset.
+        """
+        numExamples = len(dataTarget)
+        correctPredictions = 0.
+
+        # Arbitrary batch size set
+        minibatches = getMinibatchesIdx(len(dataTarget), 1)
+
+        for _, minibatch in minibatches:
+            batchPremiseTensor, batchHypothesisTensor, batchLabels = \
+                    convertDataToTrainingBatch(dataPremiseMat, self.numTimestepsPremise, dataHypothesisMat,
+                                               self.numTimestepsHypothesis, self.embeddingTable,
+                                               dataTarget, minibatch)
+            prediction = predictFunc(batchPremiseTensor, batchHypothesisTensor)
+            batchGoldIdx = [ex.argmax(axis=0) for ex in batchLabels]
+
+            correctPredictions += (np.array(prediction) ==
+                                   np.array(batchGoldIdx)).sum()
+
+        return correctPredictions/numExamples
 
 
     def trainFunc(self):
