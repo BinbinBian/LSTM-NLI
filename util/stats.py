@@ -1,4 +1,5 @@
 import collections
+import cPickle
 import time
 
 class Stats(object):
@@ -38,11 +39,17 @@ class Stats(object):
                                                     self.startTime), numEx))
 
 
-    def recordFinalStats(self, numEx, trainAcc, devAcc):
+    def recordFinalStats(self, numEx, trainAcc, devAcc, fileName):
         # TODO: Eventually support test accuracy computation as well
         self.totalNumEx = numEx
         self.acc["train"].append((numEx, trainAcc))
         self.acc["dev"].append((numEx, devAcc))
         self.logger.Log("Final training accuracy after {0} examples: {1}".format(numEx, trainAcc))
         self.logger.Log("Final validation accuracy after {0} examples: {1}".format(numEx, devAcc))
+
+        # Pickle accuracy and cost
+        with open(fileName+".pickle", 'w') as f:
+            cPickle.dump(self.acc, f)
+            cPickle.dump(self.cost, f)
+
         self.reset()

@@ -19,6 +19,7 @@ class Network(object):
     """
     def __init__(self, logPath, trainData, trainDataStats, valData, valDataStats,
                  testData, testDataStats):
+
         self.logger = Logger(log_path=logPath)
         # All layers in model
         self.layers = []
@@ -29,6 +30,10 @@ class Network(object):
         self.valDataStats = valDataStats
         self.testData = testData
         self.testDataStats = testDataStats
+
+        self.numericalParams = {} # Will store the numerical values of the
+                        # theano variables that represent the params of the
+                        # model; stored as dict of (name, value) pairs
 
 
     def buildModel(self):
@@ -91,6 +96,7 @@ class Network(object):
         self.logger.Log("Labels of examples: {0}".format(labelCategories))
 
         return labelCategories
+
 
     def trainFunc(self):
         raise NotImplementedError

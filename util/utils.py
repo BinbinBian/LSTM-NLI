@@ -214,22 +214,22 @@ def getMinibatchesIdx(numDataPoints, minibatchSize, shuffle=False):
 
 
 def convertDataToTrainingBatch(premiseIdxMat, timestepsPremise, hypothesisIdxMat,
-                                   timestepsHypothesis, embeddingTable, labels, minibatch):
-        """
-        Convert idxMats to batch tensors for training.
-        :param premiseIdxMat:
-        :param hypothesisIdxMat:
-        :param labels:
-        :return: premise tensor, hypothesis tensor, and batch labels
-        """
-        batchPremise = premiseIdxMat[0:timestepsPremise, minibatch, :]
-        batchPremiseTensor = embeddingTable.convertIdxMatToIdxTensor(batchPremise)
-        batchHypothesis = hypothesisIdxMat[0:timestepsHypothesis, minibatch, :]
-        batchHypothesisTensor = embeddingTable.convertIdxMatToIdxTensor(batchHypothesis)
+                               timestepsHypothesis, embeddingTable, labels, minibatch):
+    """
+    Convert idxMats to batch tensors for training.
+    :param premiseIdxMat:
+    :param hypothesisIdxMat:
+    :param labels:
+    :return: premise tensor, hypothesis tensor, and batch labels
+    """
+    batchPremise = premiseIdxMat[0:timestepsPremise, minibatch, :]
+    batchPremiseTensor = embeddingTable.convertIdxMatToIdxTensor(batchPremise)
+    batchHypothesis = hypothesisIdxMat[0:timestepsHypothesis, minibatch, :]
+    batchHypothesisTensor = embeddingTable.convertIdxMatToIdxTensor(batchHypothesis)
 
-        batchLabels = labels[minibatch]
+    batchLabels = labels[minibatch]
 
-        return batchPremiseTensor, batchHypothesisTensor, batchLabels
+    return batchPremiseTensor, batchHypothesisTensor, batchLabels
 
 
 def initShared(value):

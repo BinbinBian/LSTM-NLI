@@ -9,6 +9,7 @@ import time
 
 from model.embeddings import EmbeddingTable
 from model.layers import HiddenLayer
+from model.network import Network
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from util.afs_safe_logger import Logger
 from util.stats import Stats
@@ -21,7 +22,7 @@ np.random.seed(SEED)
 currDir = os.path.dirname(os.path.dirname(__file__))
 
 
-class LSTMP2H(object):
+class LSTMP2H(Network):
     """
     Represents single layer premise LSTM to hypothesis LSTM network.
     """
@@ -36,21 +37,14 @@ class LSTMP2H(object):
         :param optimizer: Optimization algorithm to use for training. Will
                           eventually support adagrad, etc.
         """
+        super(LSTMP2H, self).__init__(logPath, trainData, trainDataStats, valData,
+                                      valDataStats, testData, testDataStats)
+
         self.configs = locals()
 
         self.numTimestepsPremise = numTimestepsPremise
         self.numTimestepsHypothesis = numTimestepsHypothesis
         self.embeddingTable = EmbeddingTable(embedData)
-
-        # Paths to all data files
-        # TODO: will want to put these in Network base class
-        self.trainData = trainData
-        self.trainDataStats = trainDataStats
-        self.valData = valData
-        self.valDataStats = valDataStats
-        self.testData = testData
-        self.testDataStats = testDataStats
-        self.logger = Logger(log_path=logPath)
 
         # Dimension of word embeddings at input
         self.dimEmbedding = self.embeddingTable.dimEmbeddings
@@ -64,46 +58,11 @@ class LSTMP2H(object):
         # 0. = testing; 1. = training
         self.dropoutMode = theano.shared(0.)
 
-        self.numericalParams = {} # Will store the numerical values of the
-                        # theano variables that represent the params of the
-                        # model; stored as dict of (name, value) pairs
+        # self.numericalParams = {} # Will store the numerical values of the
+        #                 # theano variables that represent the params of the
+        #                 # model; stored as dict of (name, value) pairs
 
         self.buildModel()
-
-    # TODO: Will already be in base class
-    def printNetworkParams(self):
-        """
-        Print all params of network.
-        """
-        for layer in [self.hiddenLayerPremise, self.hiddenLayerHypothesis]:
-            self.logger.Log("Current parameter values for %s" %(layer.layerName))
-            self.logger.Log("-" * 50)
-            for pName, pValue in layer.params.iteritems():
-                self.logger.Log(pName+" : "+str(np.asarray(pValue.eval())))
-
-            self.logger.Log("-" * 50)
-
-
-    # TODO: Will already be in base class
-    def extractParams(self):
-        """
-        Extracts the numerical value of the model params and
-        stored in model variable
-        """
-        for paramName, paramVar in self.hiddenLayerHypothesis.params.iteritems():
-            self.numericalParams[paramName] = paramVar.get_value()
-
-        for paramName, paramVar in self.hiddenLayerPremise.params.iteritems():
-            self.numericalParams[paramName] = paramVar.get_value()
-
-
-    # TODO: Will already be in base class
-    def saveModel(self, modelFileName):
-        """
-        Saves the parameters of the model to disk.
-        """
-        with open(modelFileName, 'w') as f:
-            np.savez(f, **self.numericalParams)
 
 
     # TODO: Check that this actually works-- I'm skeptical
@@ -139,45 +98,6 @@ class LSTMP2H(object):
                 self.hiddenLayerPremise.params[paramName].set_value(paramVal)
 
 
-    # TODO: Will already be in base class
-    def convertIdxToLabel(self, labelIdx):
-        """
-        Converts an idx to a label from our classification categories.
-        :param idx:
-        :return: List of all label categories
-        """
-        categories = ["entailment", "contradiction", "neutral"]
-        labelCategories = []
-        for idx in labelIdx:
-            labelCategories.append(categories[idx])
-
-        self.logger.Log("Labels of examples: {0}".format(labelCategories))
-
-        return labelCategories
-
-
-    # TODO: Put this in utils
-    @staticmethod
-    def convertDataToTrainingBatch(premiseIdxMat, timestepsPremise, hypothesisIdxMat,
-                                   timestepsHypothesis, embeddingTable, labels, minibatch):
-        """
-        Convert idxMats to batch tensors for training.
-        :param premiseIdxMat:
-        :param hypothesisIdxMat:
-        :param labels:
-        :return: premise tensor, hypothesis tensor, and batch labels
-        """
-        batchPremise = premiseIdxMat[0:timestepsPremise, minibatch, :]
-        batchPremiseTensor = embeddingTable.convertIdxMatToIdxTensor(batchPremise)
-        batchHypothesis = hypothesisIdxMat[0:timestepsHypothesis, minibatch, :]
-        batchHypothesisTensor = embeddingTable.convertIdxMatToIdxTensor(batchHypothesis)
-
-        batchLabels = labels[minibatch]
-
-        return batchPremiseTensor, batchHypothesisTensor, batchLabels
-
-
-    # TODO: Will already be in base class
     def computeAccuracy(self, dataPremiseMat, dataHypothesisMat, dataTarget,
                         predictFunc):
         """
@@ -203,7 +123,6 @@ class LSTMP2H(object):
         return correctPredictions/numExamples
 
 
-    # TODO: Will already be in base class -- must override
     def buildModel(self):
         """
         Handles building of model, including initializing necessary parameters, etc.
@@ -222,6 +141,7 @@ class LSTMP2H(object):
                                         self.dropoutMode)
 
         # TODO: add above layers to self.layers
+        self.layers.extend((self.hiddenLayerPremise, self.hiddenLayerHypothesis))
 
 
     def trainFunc(self, inputPremise, inputHypothesis, yTarget, learnRate, gradMax,
@@ -274,7 +194,10 @@ class LSTMP2H(object):
         Takes care of training model, including propagation of errors and updating of
         parameters.
         """
-
+        expName = "Epochs_{0}_LRate_{1}_L2Reg_{2}_dropout_{3}_sentAttn_{4}_" \
+                       "wordAttn_{5}".format(str(numEpochs), str(learnRateVal),
+                                             str(L2regularization), str(dropoutRate),
+                                             str(sentenceAttention), str(wordwiseAttention))
         self.configs.update(locals())
         # trainPremiseIdxMat, trainHypothesisIdxMat = self.embeddingTable.convertDataToIdxMatrices(
         #                          self.trainData, self.trainDataStats)
@@ -353,10 +276,11 @@ class LSTMP2H(object):
                 stats.recordCost(cost)
 
                 # Periodically print val accuracy
+                # Note: Big time sink happens here
                 if totalExamples%(10) == 0:
                     self.dropoutMode.set_value(0.)
                     devAccuracy = self.computeAccuracy(valPremiseIdxMat,
-                                    valHypothesisIdxMat, valGoldLabel, predictFunc)
+                                                       valHypothesisIdxMat, valGoldLabel, predictFunc)
                     stats.recordAcc(totalExamples, devAccuracy, "dev")
 
 
@@ -383,7 +307,7 @@ class LSTMP2H(object):
         valAccuracy = self.computeAccuracy(valPremiseIdxMat,
                                     valHypothesisIdxMat, valGoldLabel, predictFunc)
         # TODO: change -1 for training acc to actual value when I enable train computation
-        stats.recordFinalStats(totalExamples, -1, valAccuracy)
+        stats.recordFinalStats(totalExamples, -1, valAccuracy, expName)
 
 
     def predictFunc(self, symPremise, symHypothesis, dropoutRate):
@@ -410,21 +334,3 @@ class LSTMP2H(object):
         labelIdx = softMaxOut.argmax(axis=1)
 
         return theano.function([symPremise, symHypothesis], labelIdx, name="predictLabelsFunction")
-
-
-    # TODO: Will already be in base class
-    def predict(self, premiseSent, hypothesisSent, predictFunc):
-        """
-        Output Labels for given premise/hypothesis sentences pair.
-        :param premiseSent:
-        :param hypothesisSent:
-        :param predictFunc:
-        :return: Label category from among "entailment", "contradiction", "neutral"
-        """
-        categories = ["entailment", "contradiction", "neutral"]
-        labelIdx = predictFunc(premiseSent, hypothesisSent)
-        labelCategories = []
-        for idx in labelIdx:
-            labelCategories.append(categories[idx])
-
-        return labelCategories
