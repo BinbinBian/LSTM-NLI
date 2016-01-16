@@ -232,7 +232,7 @@ class LSTMP2H(Network):
                 fUpdateHypothesis(learnRateVal)
 
                 predictLabels = self.predict(batchPremiseTensor, batchHypothesisTensor, predictFunc)
-                self.logger.Log("Labels in epoch {0}: {1}".format(epoch, str(predictLabels)))
+                #self.logger.Log("Labels in epoch {0}: {1}".format(epoch, str(predictLabels)))
 
 
                 cost = costFn(batchPremiseTensor, batchHypothesisTensor, batchLabels)
