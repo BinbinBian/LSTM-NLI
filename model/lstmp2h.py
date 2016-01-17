@@ -205,14 +205,13 @@ class LSTMP2H(Network):
             self.logger.Log("Epoch number: %d" %(epoch))
 
             if numExamplesToTrain > 0:
-                # To see if can overfit on small dataset
                 minibatches = getMinibatchesIdx(numExamplesToTrain, batchSize)
             else:
                 minibatches = getMinibatchesIdx(len(valGoldLabel), batchSize)
 
             numExamples = 0
             for _, minibatch in minibatches:
-                self.dropoutMode.set_value(1.)
+                self.dropoutMode.set_value(1.0)
                 numExamples += len(minibatch)
                 totalExamples += len(minibatch)
 
@@ -241,7 +240,7 @@ class LSTMP2H(Network):
                 # Periodically print val accuracy
                 # Note: Big time sink happens here
                 if totalExamples%(10) == 0:
-                    self.dropoutMode.set_value(0.)
+                    self.dropoutMode.set_value(0.0)
                     devAccuracy = self.computeAccuracy(valPremiseIdxMat,
                                                        valHypothesisIdxMat, valGoldLabel, predictFunc)
                     stats.recordAcc(totalExamples, devAccuracy, "dev")
