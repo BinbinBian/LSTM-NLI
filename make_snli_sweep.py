@@ -13,7 +13,7 @@ parser.add_argument("--host", type=str, default="", help="specific machine to ru
 parser.add_argument("--queue", type=str, default="jag")
 args = parser.parse_args()
 
-
+scrPath = "/scr/meric/LSTM-NLI"
 # Instructions: Configure the variables in this block, then run
 # the following on a machine with qsub access:
 # python make_sweep.py > my_sweep.sh
@@ -105,7 +105,7 @@ for run_id in range(sweep_runs):
     L2reg = "L2regularization" + "%.2g" %params["L2regularization"]
 
     experimentName = "sweep_snli_" + batchSize + "_" + numEpochs + "_" + dimHidden + "_" + learnRate + "_" + L2reg + "_" + dropoutRate
-    logPath = os.getcwd() + "/log/" + experimentName + ".log"
+    logPath =  scrPath + "/log/" + experimentName + ".log"
     flags += " --logPath" + " " + logPath
     
     host = ""    

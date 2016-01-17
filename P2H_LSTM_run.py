@@ -45,12 +45,12 @@ if __name__ == "__main__":
                         default=-1, help="number of examples to use for training"
                                          "if you don't want to use full data")
     parser.add_argument("--gradMax", type=float,
-                        default=3., help="maximum gradient magnitude to use for "
+                        default=3.0, help="maximum gradient magnitude to use for "
                                          "gradient clipping")
     parser.add_argument("--L2regularization", type=float,
-                        default=0., help="L2/L1 regularization coefficient")
+                        default=0.0, help="L2/L1 regularization coefficient")
     parser.add_argument("--dropoutRate", type=float,
-                        default=1., help="dropout probability rate")
+                        default=1.0, help="dropout probability rate")
     args = parser.parse_args()
 
     network = LSTMP2H(args.embedData, args.trainData, args.trainDataStats,

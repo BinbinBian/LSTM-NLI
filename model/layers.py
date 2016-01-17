@@ -287,8 +287,13 @@ class HiddenLayer(object):
         # Explicit cast to float32 so that we don't accidentally get float64 tensor variables
         dropoutRate = theano.shared(np.array(dropoutRate).astype(np.float32))
         transformed = T.switch(mode,
-            (tensor * rng.binomial(tensor.shape, p=dropoutRate, n=1, dtype=tensor.dtype)),
+            (tensor * rng.binomial(tensor.shape, p=dropoutRate, n=1, dtype=theano.config.floatX)),
             tensor * dropoutRate)
+        
+        #print "tensor dtype: ", tensor.dtype
+        #print "dropout rate dtype: ", dropoutRate.dtype
+        #print "dropout rate: ", np.asarray(dropoutRate.eval())
+        #print "transformed dtype: ", transformed.dtype
         return transformed
 
 

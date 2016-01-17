@@ -48,7 +48,7 @@ class LSTMP2H(Network):
 
         # shared variable to keep track of whether to apply dropout in training/testing
         # 0. = testing; 1. = training
-        self.dropoutMode = theano.shared(0.)
+        self.dropoutMode = theano.shared(0.0)
 
         self.buildModel()
 
@@ -162,9 +162,9 @@ class LSTMP2H(Network):
                                              str(L2regularization), str(dropoutRate),
                                              str(sentenceAttention), str(wordwiseAttention))
         self.configs.update(locals())
-        # trainPremiseIdxMat, trainHypothesisIdxMat = self.embeddingTable.convertDataToIdxMatrices(
-        #                          self.trainData, self.trainDataStats)
-        # trainGoldLabel = convertLabelsToMat(self.trainData)
+        trainPremiseIdxMat, trainHypothesisIdxMat = self.embeddingTable.convertDataToIdxMatrices(
+                                  self.trainData, self.trainDataStats)
+        trainGoldLabel = convertLabelsToMat(self.trainData)
 
         valPremiseIdxMat, valHypothesisIdxMat = self.embeddingTable.convertDataToIdxMatrices(
                                 self.valData, self.valDataStats)
@@ -208,11 +208,11 @@ class LSTMP2H(Network):
                 # To see if can overfit on small dataset
                 minibatches = getMinibatchesIdx(numExamplesToTrain, batchSize)
             else:
-                minibatches = getMinibatchesIdx(len(valGoldLabel), batchSize)
+                minibatches = getMinibatchesIdx(len(trainGoldLabel), batchSize)
 
             numExamples = 0
             for _, minibatch in minibatches:
-                self.dropoutMode.set_value(1.)
+                self.dropoutMode.set_value(1.0)
                 numExamples += len(minibatch)
                 totalExamples += len(minibatch)
 
@@ -220,9 +220,9 @@ class LSTMP2H(Network):
                                 format(str(numExamples)))
 
                 batchPremiseTensor, batchHypothesisTensor, batchLabels = \
-                    convertDataToTrainingBatch(valPremiseIdxMat, self.numTimestepsPremise, valHypothesisIdxMat,
+                    convertDataToTrainingBatch(trainPremiseIdxMat, self.numTimestepsPremise, trainHypothesisIdxMat,
                                                self.numTimestepsHypothesis, self.embeddingTable,
-                                               valGoldLabel, minibatch)
+                                               trainGoldLabel, minibatch)
 
                 gradHypothesisOut = fGradSharedHypothesis(batchPremiseTensor,
                                        batchHypothesisTensor, batchLabels)
@@ -240,8 +240,8 @@ class LSTMP2H(Network):
 
                 # Periodically print val accuracy
                 # Note: Big time sink happens here
-                if totalExamples%(10) == 0:
-                    self.dropoutMode.set_value(0.)
+                if totalExamples%(100) == 0:
+                    self.dropoutMode.set_value(0.0)
                     devAccuracy = self.computeAccuracy(valPremiseIdxMat,
                                                        valHypothesisIdxMat, valGoldLabel, predictFunc)
                     stats.recordAcc(totalExamples, devAccuracy, "dev")
@@ -259,12 +259,12 @@ class LSTMP2H(Network):
         self.logger.Log("Model saved!")
 
         # Set dropout to 0. again for testing
-        self.dropoutMode.set_value(0.)
+        self.dropoutMode.set_value(0.0)
 
         #Train Accuracy
-        # trainAccuracy = self.computeAccuracy(trainPremiseIdxMat,
-        #                             trainHypothesisIdxMat, trainGoldLabel, predictFunc)
-        # self.logger.Log("Final training accuracy: {0}".format(trainAccuracy))
+        trainAccuracy = self.computeAccuracy(trainPremiseIdxMat,
+                                     trainHypothesisIdxMat, trainGoldLabel, predictFunc)
+        self.logger.Log("Final training accuracy: {0}".format(trainAccuracy))
 
         # Val Accuracy
         valAccuracy = self.computeAccuracy(valPremiseIdxMat,
