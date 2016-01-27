@@ -318,8 +318,8 @@ def testTrainFunctionality():
     network = LSTMP2H(embedData, trainData, trainDataStats, valData, valDataStats, testData,
                 testDataStats, logPath, dimInput=100, dimHidden=256,
                 numTimestepsPremise=10, numTimestepsHypothesis=10)
-    network.train(numEpochs=60, batchSize=10, learnRateVal=0.0007, numExamplesToTrain=30,
-                    gradMax=3., L2regularization=0.0, dropoutRate=1.0,
+    network.train(numEpochs=14, batchSize=10, learnRateVal=0.0007, numExamplesToTrain=100,
+                    gradMax=3., L2regularization=0.3, dropoutRate=1.0,
                     sentenceAttention=False, wordwiseAttention=False)
     print "Total time for training functionality test: {0}".format(time.time() - start)
 
@@ -501,13 +501,13 @@ if __name__ == "__main__":
    #testSNLIExample()
    #testConvertToIdxMatrices()
    #testConvertIdxMatToIdxTensor()
-   #testTrainFunctionality()
+   testTrainFunctionality()
    #testExtractParamsAndSaveModel()
    #testSaveLoadModel()
    #testAccuracyComputation()
    #testDeterministicParams()
    #testRegularization()
     #testDropout()
-   testSentenceAttention()
+   #testSentenceAttention()
     #testWordwiseAttention()
     #testStats()
