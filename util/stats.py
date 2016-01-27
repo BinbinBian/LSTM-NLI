@@ -1,5 +1,6 @@
 import collections
 import cPickle
+import matplotlib.pyplot as plt
 import time
 
 class Stats(object):
@@ -28,8 +29,8 @@ class Stats(object):
                                                " {1}".format(numEx, acc))
 
 
-    def recordCost(self, cost):
-        self.cost.append(cost)
+    def recordCost(self, numEx, cost):
+        self.cost.append((numEx, cost))
         self.logger.Log("Current cost: {0}".format(cost))
 
 
@@ -37,6 +38,14 @@ class Stats(object):
         self.logger.Log("Training complete after processing {1} examples! "
                         "Total training time: {0} ".format((time.time() -
                                                     self.startTime), numEx))
+
+
+    def saveFig(self, fileName, title, xLabel, yLabel, xCoord, yCoord):
+        plt.plot(xCoord, yCoord)
+        plt.xlabel(xLabel)
+        plt.ylabel(yLabel)
+        plt.title(title)
+        plt.savefig(fileName)
 
 
     def recordFinalStats(self, numEx, trainAcc, devAcc, fileName):
@@ -51,5 +60,24 @@ class Stats(object):
         with open(fileName+".pickle", 'w') as f:
             cPickle.dump(self.acc, f)
             cPickle.dump(self.cost, f)
+
+        # Plot accuracies and loss function
+        numEx = [stat[0] for stat in self.cost]
+        cost = [stat[1] for stat in self.cost]
+
+        trainEx = [stat[0] for stat in self.acc["train"]]
+        trainAcc = [stat[1] for stat in self.acc["train"]]
+
+        devEx = [stat[0] for stat in self.acc["dev"]]
+        devAcc = [stat[1] for stat in self.acc["dev"]]
+
+        self.saveFig(fileName+"_cost.png", "Cost vs. Num Examples", "Num Examples",
+                     "Cost", numEx, cost)
+
+        self.saveFig(fileName+"_trainAcc.png", "Train Accuracy vs. Num Examples", "Num Examples",
+                     "Accuracy", trainEx, trainAcc)
+
+        self.saveFig(fileName+"_devAcc.png", "Dev Accuracy vs. Num Examples", "Num Examples",
+                     "Accuracy", devEx, devAcc)
 
         self.reset()

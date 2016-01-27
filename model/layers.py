@@ -20,6 +20,7 @@ logger = Logger(log_path="/Users/mihaileric/Documents/Research/LSTM-NLI/log/"
                          "experimentLog.txt")
 
 # TODO: Refactor so that initialization of params is provided as an option
+# TODO: Remove bias terms from regularization
 
 class HiddenLayer(object):
     def __init__(self, dimInput, dimHiddenState, dimEmbedding, layerName, dropoutMode, numCategories=3):
@@ -544,7 +545,7 @@ class HiddenLayer(object):
         """
         grads = T.grad(cost, wrt=self.params.values())
         # Clip grads to specific range to avoid parameter explosion
-        gradsClipped= [T.clip(g, -gradMax, gradMax) for g in grads]
+        gradsClipped = [T.clip(g, -gradMax, gradMax) for g in grads]
 
         gradsFn = theano.function([inputPremise, inputHypothesis, yTarget],
                                    gradsClipped, name='gradsFn')
