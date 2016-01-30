@@ -127,10 +127,10 @@ class HiddenLayer(object):
         self.params["weightsCat_"+layerName] = self.W_cat
 
         # Keep track of names of parameters specific to LSTM cell
-        self.LSTMcellParams = ["biasI_"+layerName, "weightsXi_"+layerName, "weightsHi_"+layerName,
-                               "biasF_"+layerName, "weightsXf_"+layerName, "weightsHf_"+layerName,
-                               "biasC_"+layerName, "weightsXc_"+layerName, "weightsHc_"+layerName,
-                               "biasO_"+layerName, "weightsXo_"+layerName, "weightsHo_"+layerName]
+        self.LSTMcellParams = ["weightsXi_"+layerName, "weightsHi_"+layerName,
+                               "weightsXf_"+layerName, "weightsHf_"+layerName,
+                               "weightsXc_"+layerName, "weightsHc_"+layerName,
+                               "weightsXo_"+layerName, "weightsHo_"+layerName]
 
 
     def appendParams(self, newParams):
@@ -289,7 +289,7 @@ class HiddenLayer(object):
         dropoutRate = theano.shared(np.array(dropoutRate).astype(np.float32))
         transformed = T.switch(mode,
             (tensor * rng.binomial(tensor.shape, p=dropoutRate, n=1, dtype=theano.config.floatX)),
-            tensor * dropoutRate)
+            tensor * dropoutRate) # TODO: Make sure this refers to keep rate
         
         #print "tensor dtype: ", tensor.dtype
         #print "dropout rate dtype: ", dropoutRate.dtype

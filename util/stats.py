@@ -102,7 +102,7 @@ class Stats(object):
         self.logger.Log("Final validation accuracy after {0} examples: {1}".format(numEx, devAcc))
 
         # Pickle accuracy and cost
-        with open(self.expname+".pickle", 'w') as f:
+        with open(self.expName+".pickle", 'w') as f:
             cPickle.dump(self.acc, f)
             cPickle.dump(self.cost, f)
 
