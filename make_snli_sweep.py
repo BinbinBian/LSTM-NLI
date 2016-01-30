@@ -37,14 +37,14 @@ FIXED_PARAMETERS = {
     #"dimHidden": "64",
     #"unrollSteps": "20",
     #"clipping_max_value":  "3.0",
-    "batchSize":  "512",
+    "batchSize":  "256",
     "numExamplesToTrain": "-1",
-    "numEpochs": "15"
+    "numEpochs": "50"
 }
 
 # Tunable parameters.
 SWEEP_PARAMETERS = {
-    "learnRate":      (EXP, 0.00005, 0.001),
+    "learnRate":      (EXP, 0.0001, 0.01),
     "gradMax":         (LIN, 0.5, 10.),
     "unrollSteps":      (LIN, 16, 23),
     "dimHidden":        (LIN, 128, 512),
