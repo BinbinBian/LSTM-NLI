@@ -46,8 +46,8 @@ FIXED_PARAMETERS = {
 SWEEP_PARAMETERS = {
     "learnRate":      (EXP, 0.00005, 0.001),
     "gradMax":         (LIN, 0.5, 10.),
-    "unrollSteps":      (LIN, 8, 25),
-    "dimHidden":        (LIN, 64, 512),
+    "unrollSteps":      (LIN, 16, 23),
+    "dimHidden":        (LIN, 128, 512),
     "L2regularization":   		  (EXP, 5e-7, 1e-4),
     "dropoutRate":          (LIN, 0.4, 1.0)
 }
