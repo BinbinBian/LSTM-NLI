@@ -47,7 +47,7 @@ SWEEP_PARAMETERS = {
     "learnRate":      (EXP, 0.0001, 0.01),
     "gradMax":         (LIN, 0.5, 10.),
     "unrollSteps":      (LIN, 16, 23),
-    "dimHidden":        (LIN, 128, 512),
+    "dimHidden":        (LIN, 128, 612),
     "L2regularization":   		  (EXP, 5e-7, 1e-4),
     "dropoutRate":          (LIN, 0.4, 1.0)
 }
