@@ -39,7 +39,7 @@ FIXED_PARAMETERS = {
     #"clipping_max_value":  "3.0",
     "batchSize":  "256",
     "numExamplesToTrain": "-1",
-    "numEpochs": "50"
+    "numEpochs": "100"
 }
 
 # Tunable parameters.
