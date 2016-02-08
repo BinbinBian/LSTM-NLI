@@ -13,17 +13,14 @@ SEED = 100
 np.random.seed(SEED)
 rng = RandomStreams(SEED)
 
-heka = HeKaimingInitializer()
-normal = GaussianDefaultInitializer()
-
 logger = Logger(log_path="/Users/mihaileric/Documents/Research/LSTM-NLI/log/"
                          "experimentLog.txt")
 
 # TODO: Refactor so that initialization of params is provided as an option
-# TODO: Remove bias terms from regularization
 
-class HiddenLayer(object):
-    def __init__(self, dimInput, dimHiddenState, dimEmbedding, layerName, dropoutMode, numCategories=3):
+class LSTMLayer(object):
+    def __init__(self, dimInput, dimHiddenState, dimEmbedding, layerName, dropoutMode, initializer,
+                 numCategories=3):
         """
         :param inputMat: Matrix of input vectors to use for unraveling
                          hidden layer.
@@ -48,45 +45,45 @@ class HiddenLayer(object):
         self.cellStateInit = None
 
         # Parameters for projecting from embedding size to input dimension
-        self.b_toInput = theano.shared(normal((1, dimInput)), name="biasToInput_"+layerName,
+        self.b_toInput = theano.shared(np.zeros((1, dimInput), dtype=np.float32), name="biasToInput_"+layerName,
                                         broadcastable=(True, False))
-        self.W_toInput = theano.shared(normal((dimInput, dimEmbedding)),
+        self.W_toInput = theano.shared(initializer((dimInput, dimEmbedding)),
                                             name="weightsXtoInput_"+layerName)
 
         # Parameters for forget gate
-        self.b_f = theano.shared(normal((1, dimHiddenState)), name="biasF_"+layerName,
+        self.b_f = theano.shared(np.zeros((1, dimHiddenState), dtype=np.float32), name="biasF_"+layerName,
                                  broadcastable=(True, False))
-        self.W_f = theano.shared(normal((dimHiddenState, dimInput)),
+        self.W_f = theano.shared(initializer((dimHiddenState, dimInput)),
                                                 name="weightsXf_"+layerName)
-        self.U_f = theano.shared(normal((dimHiddenState,
+        self.U_f = theano.shared(initializer((dimHiddenState,
                                         dimHiddenState)),
                                         name="weightsHf_"+layerName)
 
         # Parameters for input gate
-        self.b_i = theano.shared(normal((1, dimHiddenState)), name="biasI_"+layerName, broadcastable=(True, False))
-        self.W_i = theano.shared(normal((dimHiddenState, dimInput)),
+        self.b_i = theano.shared(np.zeros((1, dimHiddenState), dtype=np.float32), name="biasI_"+layerName, broadcastable=(True, False))
+        self.W_i = theano.shared(initializer((dimHiddenState, dimInput)),
                                                 name="weightsXi_"+layerName)
-        self.U_i = theano.shared(normal((dimHiddenState,
+        self.U_i = theano.shared(initializer((dimHiddenState,
                                         dimHiddenState)),
                                         name="weightsHi_"+layerName)
 
 
         # Parameters for candidate values
-        self.b_c = theano.shared(normal((1, dimHiddenState)), name="biasC_"+layerName, broadcastable=(True, False))
-        self.W_c = theano.shared(normal((dimHiddenState,
+        self.b_c = theano.shared(np.zeros((1, dimHiddenState), dtype=np.float32), name="biasC_"+layerName, broadcastable=(True, False))
+        self.W_c = theano.shared(initializer((dimHiddenState,
                                                dimInput)),
                                                name="weightsXc_"+layerName)
-        self.U_c = theano.shared(normal((dimHiddenState,
+        self.U_c = theano.shared(initializer((dimHiddenState,
                                          dimHiddenState)),
                                          name="weightsHc_"+layerName)
 
         # Parameters for final output vector transform (for final
         # classification)
-        self.b_o = theano.shared(normal((1, dimHiddenState)), name="biasO_"+layerName, broadcastable=(True, False))
-        self.W_o = theano.shared(normal((dimHiddenState,
+        self.b_o = theano.shared(np.zeros((1, dimHiddenState), dtype=np.float32), name="biasO_"+layerName, broadcastable=(True, False))
+        self.W_o = theano.shared(initializer((dimHiddenState,
                                                dimInput)),
                                                name="weightsXo_"+layerName)
-        self.U_o = theano.shared(normal((dimHiddenState,
+        self.U_o = theano.shared(initializer((dimHiddenState,
                                          dimHiddenState)),
                                          name="weightsHo_"+layerName)
 
@@ -94,8 +91,8 @@ class HiddenLayer(object):
         # Parameters for linear projection from output of forward pass to a
         # vector with dimension equal to number of categories being classified
         # via one more softmax
-        self.b_cat = theano.shared(normal((1, self.numLabels)), name="biasCat_"+layerName, broadcastable=(True, False))
-        self.W_cat = theano.shared(normal((dimHiddenState,
+        self.b_cat = theano.shared(np.zeros((1, self.numLabels), dtype=np.float32), name="biasCat_"+layerName, broadcastable=(True, False))
+        self.W_cat = theano.shared(initializer((dimHiddenState,
                                             self.numLabels)),
                                             name="weightsCat_"+layerName)
 
@@ -536,6 +533,7 @@ class HiddenLayer(object):
                                      cost, name='LSTM_cost_function', on_unused_input="warn")
 
 
+    # TODO: replace this with implementation in 'trainingUtils'
     def computeGrads(self, inputPremise, inputHypothesis, yTarget, cost, gradMax):
         """
         Computes gradients for cost function with respect to all parameters.
@@ -563,6 +561,7 @@ class HiddenLayer(object):
         return paramUpdate #theano.function([learnRate], [], updates=paramUpdate, name="sgdParamUpdate")
 
 
+    # TODO: replace this with implementation in 'trainingUtils'
     def rmsprop(self, grads, learnRate, inputPremise, inputHypothesis, yTarget, cost):
         """
         Return RMSprop updates for parameters of model.

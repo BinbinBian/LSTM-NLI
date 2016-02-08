@@ -8,7 +8,7 @@ import theano.tensor as T
 import time
 
 from model.embeddings import EmbeddingTable
-from model.layers import HiddenLayer
+from model.layers import LSTMLayer
 from model.network import Network
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from util.afs_safe_logger import Logger
@@ -27,21 +27,21 @@ class LSTMP2H(Network):
     Represents single layer premise LSTM to hypothesis LSTM network.
     """
     def __init__(self, embedData, trainData, trainDataStats, valData, valDataStats,
-                 testData, testDataStats, logPath, dimHidden=2,
+                 testData, testDataStats, logPath, initializer, dimHidden=2,
                  dimInput=2, numTimestepsPremise=1, numTimestepsHypothesis=1):
         """
         :param numTimesteps: Number of timesteps to unroll network for.
         :param dataPath: Path to file with precomputed word embeddings
         :param batchSize: Number of samples to use in each iteration of
                          training
-        :param optimizer: Optimization algorithm to use for training. Will
-                          eventually support adagrad, etc.
+        :param initializer: Weight initialization scheme
         """
         super(LSTMP2H, self).__init__(embedData, logPath, trainData, trainDataStats, valData,
                                       valDataStats, testData, testDataStats,
                                       numTimestepsPremise, numTimestepsHypothesis)
         self.configs = locals()
 
+        self.initializer = initializer
         # Desired dimension of input to hidden layer
         self.dimInput = dimInput
         self.dimHidden = dimHidden
@@ -90,18 +90,18 @@ class LSTMP2H(Network):
         """
         Handles building of model, including initializing necessary parameters, etc.
         """
-        self.hiddenLayerPremise = HiddenLayer(self.dimInput, self.dimHidden,
+        self.hiddenLayerPremise = LSTMLayer(self.dimInput, self.dimHidden,
                                               self.dimEmbedding, "premiseLayer",
-                                              self.dropoutMode)
+                                              self.dropoutMode, self.initializer)
 
         # Need to make sure not differentiating with respect to Wcat of premise
         # May want to find cleaner way to deal with this later
         del self.hiddenLayerPremise.params["weightsCat_premiseLayer"]
         del self.hiddenLayerPremise.params["biasCat_premiseLayer"]
 
-        self.hiddenLayerHypothesis = HiddenLayer(self.dimInput, self.dimHidden,
+        self.hiddenLayerHypothesis = LSTMLayer(self.dimInput, self.dimHidden,
                                         self.dimEmbedding, "hypothesisLayer",
-                                        self.dropoutMode)
+                                        self.dropoutMode, self.initializer)
 
         # TODO: add above layers to self.layers
         self.layers.extend((self.hiddenLayerPremise, self.hiddenLayerHypothesis))
@@ -114,6 +114,9 @@ class LSTMP2H(Network):
         Defines theano training function for layer, including forward runs and backpropagation.
         Takes as input the necessary symbolic variables.
         """
+
+        # TODO: First extract relevant inputPremise/inputHypothesis
+        # Given vector of minibatch indices --> extract from shared premise/hypothesis matrices
         if sentenceAttention:
             self.hiddenLayerHypothesis.initSentAttnParams()
 
@@ -177,6 +180,19 @@ class LSTMP2H(Network):
             valGoldLabel = valGoldLabel[range(numExamplesToTrain)]
 
 
+        #Whether zero-padded on left or right
+        pad = "right"
+
+        # Get full premise/hypothesis tensors
+        # batchPremiseTensor, batchHypothesisTensor, batchLabels = \
+        #             convertDataToTrainingBatch(valPremiseIdxMat, self.numTimestepsPremise, valHypothesisIdxMat,
+        #                                        self.numTimestepsHypothesis, "right", self.embeddingTable,
+        #                                        valGoldLabel, range(len(valGoldLabel)))
+        #sharedValPremise = theano.shared(batchPremiseTensor)
+        #sharedValHypothesis = theano.shared(batchHypothesisTensor)
+        #sharedValLabels = theano.shared(batchLabels)
+
+
         inputPremise = T.ftensor3(name="inputPremise")
         inputHypothesis = T.ftensor3(name="inputHypothesis")
         yTarget = T.fmatrix(name="yTarget")
@@ -190,7 +206,7 @@ class LSTMP2H(Network):
                                             wordwiseAttention, batchSize)
 
         totalExamples = 0
-        stats = Stats(self.logger)
+        stats = Stats(self.logger, expName)
 
         # Training
         self.logger.Log("Model configs: {0}".format(self.configs))
@@ -219,9 +235,9 @@ class LSTMP2H(Network):
                                 format(str(numExamples)))
 
                 batchPremiseTensor, batchHypothesisTensor, batchLabels = \
-                    convertDataToTrainingBatch(trainPremiseIdxMat, self.numTimestepsPremise, trainHypothesisIdxMat,
-                                               self.numTimestepsHypothesis, self.embeddingTable,
-                                               trainGoldLabel, minibatch)
+                    convertDataToTrainingBatch(valPremiseIdxMat, self.numTimestepsPremise, valHypothesisIdxMat,
+                                               self.numTimestepsHypothesis, pad, self.embeddingTable,
+                                               valGoldLabel, minibatch)
 
                 gradHypothesisOut = fGradSharedHypothesis(batchPremiseTensor,
                                        batchHypothesisTensor, batchLabels)
@@ -235,11 +251,11 @@ class LSTMP2H(Network):
 
 
                 cost = costFn(batchPremiseTensor, batchHypothesisTensor, batchLabels)
-                stats.recordCost(cost)
+                stats.recordCost(totalExamples, cost)
 
-                # Periodically print val accuracy
                 # Note: Big time sink happens here
                 if totalExamples%(100) == 0:
+                    # TODO: Don't compute accuracy of dev set
                     self.dropoutMode.set_value(0.0)
                     devAccuracy = self.computeAccuracy(valPremiseIdxMat,
                                                        valHypothesisIdxMat, valGoldLabel, predictFunc)
@@ -261,15 +277,15 @@ class LSTMP2H(Network):
         self.dropoutMode.set_value(0.0)
 
         #Train Accuracy
-        trainAccuracy = self.computeAccuracy(trainPremiseIdxMat,
-                                     trainHypothesisIdxMat, trainGoldLabel, predictFunc)
-        self.logger.Log("Final training accuracy: {0}".format(trainAccuracy))
+        # trainAccuracy = self.computeAccuracy(trainPremiseIdxMat,
+        #                              trainHypothesisIdxMat, trainGoldLabel, predictFunc)
+        # self.logger.Log("Final training accuracy: {0}".format(trainAccuracy))
 
         # Val Accuracy
         valAccuracy = self.computeAccuracy(valPremiseIdxMat,
                                     valHypothesisIdxMat, valGoldLabel, predictFunc)
         # TODO: change -1 for training acc to actual value when I enable train computation
-        stats.recordFinalStats(totalExamples, -1, valAccuracy, expName)
+        stats.recordFinalStats(totalExamples, -1, valAccuracy)
 
 
     def predictFunc(self, symPremise, symHypothesis, dropoutRate):
