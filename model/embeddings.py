@@ -167,12 +167,13 @@ class EmbeddingTable(object):
         return embeddingList
 
 
-    def convertDataToIdxMatrices(self, dataJSONFile, dataStats):
+    def convertDataToIdxMatrices(self, dataJSONFile, dataStats, pad='right'):
         """
         Converts data file to matrix of dim (# maxlength, # numSamples, 1)
         where the last dimension stores the idx of the word embedding.
         :param dataJSONFile: File to data with sentences
         :param dataStats:
+        :param pad: Whether to pad with zeros at beginning (left) or end (right)
         :return:
         """
         sentences = loadExampleSentences(dataJSONFile)
@@ -195,10 +196,16 @@ class EmbeddingTable(object):
 
         for idx, (premiseSent, hypothesisSent) in enumerate(sentences):
             premiseIdxMat = np.array(self.convertSentListToIdxMatrix(premiseSent))[:, 0]
-            premiseIdxMatrix[0:len(premiseIdxMat), idx, 0] = premiseIdxMat # Pad with zeros at end # Slight bug here
-
             hypothesisIdxMat = np.array(self.convertSentListToIdxMatrix(hypothesisSent))[:, 0]
-            hypothesisIdxMatrix[0:len(hypothesisIdxMat), idx, 0] = hypothesisIdxMat
+
+            if pad == 'right':
+                # Pad with zeros at end
+                premiseIdxMatrix[0:len(premiseIdxMat), idx, 0] = premiseIdxMat # Slight bug here
+                hypothesisIdxMatrix[0:len(hypothesisIdxMat), idx, 0] = hypothesisIdxMat
+            else:
+                # Pad with zeros at beginning
+                premiseIdxMatrix[-len(premiseIdxMat):, idx, 0] = premiseIdxMat # Slight bug here
+                hypothesisIdxMatrix[-len(hypothesisIdxMat):, idx, 0] = hypothesisIdxMat
 
         return premiseIdxMatrix, hypothesisIdxMatrix
 

@@ -117,11 +117,12 @@ class Network(object):
 
         # Arbitrary batch size set
         minibatches = getMinibatchesIdx(len(dataTarget), 1)
+        pad = "right"
 
         for _, minibatch in minibatches:
             batchPremiseTensor, batchHypothesisTensor, batchLabels = \
                     convertDataToTrainingBatch(dataPremiseMat, self.numTimestepsPremise, dataHypothesisMat,
-                                               self.numTimestepsHypothesis, self.embeddingTable,
+                                               self.numTimestepsHypothesis, pad, self.embeddingTable,
                                                dataTarget, minibatch)
             prediction = predictFunc(batchPremiseTensor, batchHypothesisTensor)
             batchGoldIdx = [ex.argmax(axis=0) for ex in batchLabels]

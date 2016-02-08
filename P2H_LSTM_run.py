@@ -8,9 +8,12 @@ import sys
 sys.path.append("/Users/mihaileric/Documents/Research/LSTM-NLI/")
 
 from model.lstmp2h import LSTMP2H
+from util.utils import HeKaimingInitializer, GaussianDefaultInitializer
 
 
 if __name__ == "__main__":
+    heka = HeKaimingInitializer()
+
     parser = argparse.ArgumentParser(description="argument parser for neural "
                                                  "model")
     parser.add_argument("--embedData", type=str,
@@ -55,7 +58,7 @@ if __name__ == "__main__":
 
     network = LSTMP2H(args.embedData, args.trainData, args.trainDataStats,
                       args.valData, args.valDataStats, args.testData,
-                      args.testDataStats, args.logPath, dimHidden=args.dimHidden,
+                      args.testDataStats, args.logPath, heka, dimHidden=args.dimHidden,
                       dimInput=args.dimInput, numTimestepsPremise=args.unrollSteps,
                       numTimestepsHypothesis=args.unrollSteps)
     network.train(args.numEpochs, args.batchSize, args.learnRate, args.numExamplesToTrain,

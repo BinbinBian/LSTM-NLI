@@ -12,11 +12,11 @@ import theano.tensor as T
 import time
 
 from model.embeddings import EmbeddingTable
-from model.layers import HiddenLayer
+from model.layers import LSTMLayer
 from model.lstmp2h import LSTMP2H
 from util.afs_safe_logger import Logger
 from util.stats import Stats
-from util.utils import convertLabelsToMat, computeParamNorms
+from util.utils import convertLabelsToMat, computeParamNorms, HeKaimingInitializer, GaussianDefaultInitializer
 
 dataPath = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/"
 # Set random seed for deterministic runs
@@ -314,12 +314,15 @@ testDataStats = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/test_dataSta
 logPath = "/Users/mihaileric/Documents/Research/LSTM-NLI/log/runOutput"
 
 def testTrainFunctionality():
+    heka = HeKaimingInitializer()
+    normal = GaussianDefaultInitializer()
+
     start = time.time()
     network = LSTMP2H(embedData, trainData, trainDataStats, valData, valDataStats, testData,
-                testDataStats, logPath, dimInput=100, dimHidden=256,
+                testDataStats, logPath, heka, dimInput=100, dimHidden=256,
                 numTimestepsPremise=10, numTimestepsHypothesis=10)
-    network.train(numEpochs=14, batchSize=10, learnRateVal=0.0007, numExamplesToTrain=100,
-                    gradMax=3., L2regularization=0.3, dropoutRate=1.0,
+    network.train(numEpochs=14, batchSize=10, learnRateVal=0.0007, numExamplesToTrain=30,
+                    gradMax=3., L2regularization=0.0, dropoutRate=1.0,
                     sentenceAttention=False, wordwiseAttention=False)
     print "Total time for training functionality test: {0}".format(time.time() - start)
 
