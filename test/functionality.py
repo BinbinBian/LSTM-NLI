@@ -16,7 +16,7 @@ from model.layers import LSTMLayer
 from model.lstmp2h import LSTMP2H
 from util.afs_safe_logger import Logger
 from util.stats import Stats
-from util.utils import convertLabelsToMat, computeParamNorms, HeKaimingInitializer, GaussianDefaultInitializer
+from util.utils import convertLabelsToMat, computeParamNorms, HeKaimingInitializer, GaussianDefaultInitializer, generate_data
 
 dataPath = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/"
 # Set random seed for deterministic runs
@@ -484,6 +484,13 @@ def testStats():
     print stats.acc
 
 
+def test_generate_data():
+    table = EmbeddingTable(dataPath+"glove.6B.50d.txt.gz")
+    devData = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/snli_1.0_dev.jsonl"
+    devDataStats = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/dev_dataStats.json"
+    train_prem, train_hyp = generate_data(devData, devDataStats, "left", table)
+    return 5
+
 if __name__ == "__main__":
   #testLabelsMat()
   # testEmbeddings()
@@ -504,7 +511,7 @@ if __name__ == "__main__":
    #testSNLIExample()
    #testConvertToIdxMatrices()
    #testConvertIdxMatToIdxTensor()
-   testTrainFunctionality()
+   #testTrainFunctionality()
    #testExtractParamsAndSaveModel()
    #testSaveLoadModel()
    #testAccuracyComputation()
@@ -514,3 +521,4 @@ if __name__ == "__main__":
    #testSentenceAttention()
     #testWordwiseAttention()
     #testStats()
+    test_generate_data()

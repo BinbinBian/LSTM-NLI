@@ -3,22 +3,28 @@ import cPickle
 import matplotlib.pyplot as plt
 import time
 
+from util.afs_safe_logger import Logger
+
 # Number of seconds in an hour
 SEC_HOUR = 3600
 
 class Stats(object):
     """
-    General purpose object for recording statistics of model run including
-    accuracies and cost values. Note, takes as input a logger object used
-    for writing to disk periodically. Will also be used to plot appropriate graphs.
+    General purpose object for recording and logging statistics/run of model run including
+    accuracies and cost values. Will also be used to plot appropriate graphs.
+    Note 'expName' must be full path for where to log experiment info.
     """
-    def __init__(self, logger, expName):
+    def __init__(self, expName):
+        self.logger = Logger(expName)
         self.startTime = time.time()
         self.acc = collections.defaultdict(list)
         self.cost = []
-        self.logger = logger
         self.totalNumEx = 0
         self.expName = expName
+
+
+    def log(self, message):
+        self.logger.Log(message)
 
 
     def reset(self):
@@ -32,11 +38,12 @@ class Stats(object):
         self.logger.Log("Current " + dataset + " accuracy after {0} examples:"
                                                " {1}".format(numEx, acc))
         if dataset == "train":
-            ex = self.getTrainEx()
-            acc = self.getTrainAcc()
+            ex = self.getExNum(dataList=dataset)
+            acc = self.getAcc(dataList=dataset)
         elif dataset == "dev":
-            ex = self.getDevEx()
-            acc = self.getDevAcc()
+            ex = self.getExNum(dataList=dataset)
+            acc = self.getAcc(dataList=dataset)
+        # TODO: Support "test" computation as well
 
         self.plotAndSaveFig(self.expName+"_"+dataset+"Acc.png", dataset +
                             "Accuracy vs. Num Examples", "Num Examples", dataset +
@@ -46,7 +53,7 @@ class Stats(object):
     def recordCost(self, numEx, cost):
         self.cost.append((numEx, cost))
         self.logger.Log("Current cost: {0}".format(cost))
-        numEx = self.getNumEx()
+        numEx = self.getExNum(dataList="cost")
         cost = self.getCost()
         self.plotAndSaveFig(self.expName+"_cost.png", "Cost vs. Num Examples", "Num Examples",
                      "Cost", numEx, cost)
@@ -67,28 +74,26 @@ class Stats(object):
         plt.clf()
 
 
-    def getNumEx(self):
-        return [stat[0] for stat in self.cost]
-
-
     def getCost(self):
         return [stat[1] for stat in self.cost]
 
 
-    def getTrainEx(self):
-        return [stat[0] for stat in self.acc["train"]]
+    def getExNum(self, dataList="train"):
+        """
+        Get total examples in data list specified returned as a list.
+        Options include "train", "dev", "cost".
+        Eventually will support "test" as well.
+        :param dataList:
+        :return:
+        """
+        if dataList == "cost":
+            return [stat[0] for stat in self.cost]
+        else:
+            return [stat[0] for stat in self.acc[dataList]]
 
 
-    def getTrainAcc(self):
-        return [stat[1] for stat in self.acc["train"]]
-
-
-    def getDevEx(self):
-        return [stat[0] for stat in self.acc["dev"]]
-
-
-    def getDevAcc(self):
-        return [stat[1] for stat in self.acc["dev"]]
+    def getAcc(self, dataList="train"):
+        return [stat[1] for stat in self.acc[dataList]]
 
 
     def recordFinalStats(self, numEx, trainAcc, devAcc):
@@ -100,19 +105,19 @@ class Stats(object):
         self.logger.Log("Final validation accuracy after {0} examples: {1}".format(numEx, devAcc))
 
         # Pickle accuracy and cost
-        with open(self.expName+".pickle", 'w') as f:
+        with open(self.expName+".pickle", "w") as f:
             cPickle.dump(self.acc, f)
             cPickle.dump(self.cost, f)
 
         # Plot accuracies and loss function
-        numEx = self.getNumEx()
+        numEx = self.getExNum(dataList="cost")
         cost = self.getCost()
 
-        trainEx = self.getTrainEx()
-        trainAcc = self.getTrainAcc()
+        trainEx = self.getExNum(dataList="train")
+        trainAcc = self.getAcc(dataList="train")
 
-        devEx = self.getDevEx()
-        devAcc = self.getDevAcc()
+        devEx = self.getExNum(dataList="dev")
+        devAcc = self.getAcc(dataList="dev")
 
         self.plotAndSaveFig(self.expName+"_cost.png", "Cost vs. Num Examples", "Num Examples",
                      "Cost", numEx, cost)
