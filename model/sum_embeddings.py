@@ -16,9 +16,7 @@ from util.utils import getMinibatchesIdx, convertLabelsToMat, generate_data
 
 # Min/max sequence length
 MIN_LENGTH = 50
-MAX_LENGTH = 3
-# Number of units in the hidden (recurrent) layer
-N_HIDDEN = 100
+MAX_LENGTH = 10
 # Number of training sequences in each batch
 N_BATCH = 8
 # Optimization learning rate
@@ -83,25 +81,27 @@ def convert_idx_to_label(idx_array):
     return predictions
 
 
-def main(num_epochs=NUM_EPOCHS):
+def main(exp_name, embed_data, train_data, train_data_stats, val_data, val_data_stats,
+         test_data, test_data_stats, log_path, batch_size, num_epochs,
+         unroll_steps, learn_rate):
+
     # Set random seed for deterministic results
     np.random.seed(0)
     num_ex_to_train = -1
 
     # Load embedding table
-    embedData = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/glove.6B.50d.txt.gz"
-    table = EmbeddingTable(embedData)
+    table = EmbeddingTable(embed_data)
     vocab_size = table.sizeVocab
     dim_embeddings = table.dimEmbeddings
     embeddings_mat = table.embeddings
 
 
-    #train_prem, train_hyp = generate_data(trainData, trainDataStats, "right", table)
-    val_prem, val_hyp = generate_data(valData, valDataStats, "right", table, seq_len=18)
-    #train_labels = convertLabelsToMat(trainData)
+    train_prem, train_hyp = generate_data(train_data, train_data_stats, "right", table, seq_len=unroll_steps)
+    val_prem, val_hyp = generate_data(val_data, val_data_stats, "right", table, seq_len=unroll_steps)
+    train_labels = convertLabelsToMat(trainData)
     val_labels = convertLabelsToMat(valData)
 
-    # Want to test for overfitting capabilities of model
+    # To test for overfitting capabilities of model
     if num_ex_to_train > 0:
         val_prem = val_prem[0:num_ex_to_train]
         val_hyp = val_hyp[0:num_ex_to_train]
@@ -119,12 +119,12 @@ def main(num_epochs=NUM_EPOCHS):
     x_target = np.array([[1, 0, 0], [1, 0, 0]]).astype(np.float32)
 
     # Embedding layer for premise
-    l_in_prem = InputLayer((N_BATCH, MAX_LENGTH))
+    l_in_prem = InputLayer((batch_size, unroll_steps))
     l_embed_prem = EmbeddingLayer(l_in_prem, input_size=vocab_size,
                         output_size=dim_embeddings, W=embeddings_mat)
 
     # Embedding layer for hypothesis
-    l_in_hyp = InputLayer((N_BATCH, MAX_LENGTH))
+    l_in_hyp = InputLayer((batch_size, unroll_steps))
     l_embed_hyp = EmbeddingLayer(l_in_hyp, input_size=vocab_size,
                         output_size=dim_embeddings, W=embeddings_mat)
 
@@ -141,7 +141,6 @@ def main(num_epochs=NUM_EPOCHS):
 
     # Note dense layer uses ReLu nonlinearity by default
     l_dense = DenseLayer(l_concat, num_units=NUM_DENSE_UNITS, nonlinearity=lasagne.nonlinearities.softmax)
-    # Note this is the output of the network
     network_output = get_output(l_dense, {l_in_prem: x_p, l_in_hyp: x_h}) # Will have shape (batch_size, 3)
     f_dense_output = theano.function([x_p, x_h], network_output, on_unused_input='warn')
 
@@ -156,17 +155,15 @@ def main(num_epochs=NUM_EPOCHS):
 
     # Define update/train functions
     all_params = lasagne.layers.get_all_params(l_dense, trainable=True)
-    updates = lasagne.updates.rmsprop(cost, all_params, LEARNING_RATE)
+    updates = lasagne.updates.rmsprop(cost, all_params, learn_rate)
     train = theano.function([x_p, x_h, target_values], cost, updates=updates)
 
-    # TODO: Test that training is working appropriately
     # TODO: Augment embedding layer to allow for masking inputs
 
-    exp_name = "/Users/mihaileric/Documents/Research/LSTM-NLI/log/sum_embeddings.log"
     stats = Stats(exp_name)
-    acc_num = 10
+    acc_num = 50
 
-    minibatches = getMinibatchesIdx(val_prem.shape[0], N_BATCH)
+    minibatches = getMinibatchesIdx(train_prem.shape[0], batch_size)
     print("Training ...")
     try:
         total_num_ex = 0
@@ -175,16 +172,18 @@ def main(num_epochs=NUM_EPOCHS):
                 total_num_ex += len(minibatch)
                 stats.log("Processed {0} total examples in epoch {1}".format(str(total_num_ex),
                                                                              str(epoch)))
-                prem_batch = val_prem[minibatch]
-                hyp_batch = val_hyp[minibatch]
-                labels_batch = val_labels[minibatch]
+                prem_batch = train_prem[minibatch]
+                hyp_batch = train_hyp[minibatch]
+                labels_batch = train_labels[minibatch]
                 train(prem_batch, hyp_batch, labels_batch)
                 cost_val = compute_cost(prem_batch, hyp_batch, labels_batch)
 
                 stats.recordCost(total_num_ex, cost_val)
-                # Periodically compute and log accuracy
-                if total_num_ex%(acc_num*N_BATCH) == 0:
+                # Periodically compute and log train/dev accuracy
+                if total_num_ex%(acc_num*batch_size) == 0:
+                    train_acc = compute_accuracy(train_prem, train_hyp, train_labels)
                     dev_acc = compute_accuracy(val_prem, val_hyp, val_labels)
+                    stats.recordAcc(total_num_ex, train_acc, dataset="train")
                     stats.recordAcc(total_num_ex, dev_acc, dataset="dev")
 
     except KeyboardInterrupt:
@@ -192,4 +191,7 @@ def main(num_epochs=NUM_EPOCHS):
 
 
 if __name__ == '__main__':
-    main()
+    embedData = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/glove.6B.50d.txt.gz"
+    exp_name = "/Users/mihaileric/Documents/Research/LSTM-NLI/log/sum_embeddings.log"
+    main(exp_name, embedData, trainData, trainDataStats, valData, valDataStats, "", "",
+         "", N_BATCH, NUM_EPOCHS, 18, LEARNING_RATE)
