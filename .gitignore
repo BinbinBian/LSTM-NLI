@@ -1,1 +1,7 @@
 *.pyc
+data/*
+.idea
+.DS_STORE
+.ipynb*
+Figures/*
+log/*

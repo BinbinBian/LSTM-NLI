@@ -10,7 +10,6 @@ class EmbeddingTable(object):
     constructs a matrix of these word embeddings.
 
     """
-    # TODO: Add support for word2vec
     def __init__(self, dataPath, embeddingType="glove"):
         """
             :param dataPath: Path to file with precomputed vectors if relevant
@@ -65,6 +64,15 @@ class EmbeddingTable(object):
                 wordVocab.append(wordContents[0])
                 wordVectors.append(wordContents[1:])
 
+
+        # Initialize UNK token to random normally distributed vector with stdDev
+        dimVec = len(wordVectors[0])
+        stdDev = 0.05
+        wordVectors.append(list(stdDev * np.random.randn(dimVec,)))
+        wordVocab.append("UNK") # UNK token at end of list of words
+        # TODO: Add ZERO token to vocab?? Probably not...
+
+        wordVectors.append([0]*dimVec)
         wordVectors = np.array(wordVectors, dtype=np.float32)
         wordToIndex = dict(zip(wordVocab, range(len(wordVocab))))
         indexToWord = {idx: word for word, idx in wordToIndex.iteritems()}
@@ -75,13 +83,15 @@ class EmbeddingTable(object):
     def getIdxFromWord(self, word):
         """
         Return the idx in the embedding lookup table for the given word. Return
-         'nan' if word not found in lookup table.
+         last idx of embedding table (associated with UNK token) if word not found in table.
         """
         try:
             idx = self.wordToIndex[word]
             return idx
         except:
-            return np.nan
+            print "Returning index for UNK token..."
+            unk_idx = len(self.embeddings) - 2
+            return unk_idx
 
 
     def getEmbeddingFromWord(self, word):
@@ -94,8 +104,9 @@ class EmbeddingTable(object):
             idx = self.wordToIndex[word]
             return self.embeddings[idx]
         except (KeyError, TypeError):
-            print "Word not found in embedding matrix. Returning random vector..."
-            return np.random.uniform(-0.05, 0.05, self.dimEmbeddings)
+            print "Word not contained in embedding vocabulary. Returning vector associated with UNK token..."
+            unk_idx = len(self.embeddings) - 2
+            return self.embeddings[unk_idx]
 
 
     def getEmbeddingfromIdx(self, idx):
@@ -116,11 +127,11 @@ class EmbeddingTable(object):
     def convertSentToIdxMatrix(self, sentence):
         """
         Converts a given sentence into a matrix of indices for embedding lookup table.
-        :param sentence: Sentence to convert into matrix of indices
-        :return: List of lists of embedding idx
+        :param sentence: Sentence to convert into list of idx
+        :return: List of idx
         """
         tokens = [word.lower() for word in sentence.split()]
-        allIdx = [[self.getIdxFromWord(word)] for word in tokens]
+        allIdx = [self.getIdxFromWord(word) for word in tokens]
 
         return allIdx
 
@@ -132,7 +143,7 @@ class EmbeddingTable(object):
         :return: List of lists of embedding idx
         """
         tokens = [word.lower() for word in sentenceList]
-        allIdx = [[self.getIdxFromWord(word)] for word in tokens]
+        allIdx = [self.getIdxFromWord(word) for word in tokens]
 
         return allIdx
 
@@ -266,3 +277,4 @@ class EmbeddingTable(object):
             sentences.append(sent)
 
         return sentences
+

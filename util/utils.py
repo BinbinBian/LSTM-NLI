@@ -9,7 +9,7 @@ import re
 import sys
 import theano
 
-from load_snli_data import loadExampleLabels
+from load_snli_data import loadExampleLabels, loadExampleSentences
 
 """Add root directory path"""
 root_dir = os.path.dirname(os.path.dirname(__file__))
@@ -159,7 +159,7 @@ def convertLabelsToMat(dataFile):
     :param dataFile: Path to JSON data file
     :return: numpy matrix corresponding to the labels
     """
-    labelsList = ["entailment", "contradiction", "neutral"]
+    labelsList = ["entailment", "neutral", "contradiction"]
     with open(dataFile, "r") as f:
         labels = loadExampleLabels(dataFile)
 
@@ -261,6 +261,49 @@ def computeParamNorms(params, L2regularization):
         paramSum += (param**2).sum()
     paramSum *= rCoef
     return paramSum
+
+
+def generate_data(data_json_file, data_stats, pad_dir, embed_table, seq_len):
+    """
+    Return data of form (num_sample, max_seq_len) where there
+    are len in idx list if in masked indices
+    :param data_json_file:
+    :param data_stats:
+    :param pad_dir:
+    :param seq_len: desired sequence length
+    :return:
+    """
+    sentences = loadExampleSentences(data_json_file)
+
+    # Not sure if this is completely necessary
+    with open(data_stats, "r") as statsFile:
+        statsJSON = json.load(statsFile)
+        max_len_prem = statsJSON["maxSentLenPremise"]
+        max_len_hyp = statsJSON["maxSentLenHypothesis"]
+
+    num_samples = len(sentences)
+    prem_mat = np.zeros((num_samples, seq_len)).astype(np.int32)
+    hyp_mat = np.zeros((num_samples, seq_len)).astype(np.int32)
+
+    len_vocab = embed_table.sizeVocab
+
+    # Start by filling with idx corresponding to zero embedding vec
+    prem_mat.fill(len_vocab-1)
+    hyp_mat.fill(len_vocab-1)
+
+    for idx, (premiseSent, hypothesisSent) in enumerate(sentences):
+        prem_idx = np.array(embed_table.convertSentListToIdxMatrix(premiseSent))
+        hyp_idx = np.array(embed_table.convertSentListToIdxMatrix(hypothesisSent))
+
+        if pad_dir == "right":
+            prem_mat[idx, 0:len(prem_idx)] = prem_idx[0:seq_len]
+            hyp_mat[idx, 0:len(hyp_idx)] = hyp_idx[0:seq_len]
+
+        elif pad_dir == "left":
+            prem_mat[idx, -len(prem_idx):] = prem_idx[0:seq_len]
+            hyp_mat[idx, -len(hyp_idx):] = hyp_idx[0:seq_len]
+
+    return prem_mat, hyp_mat
 
 
 # TODO: Put these in a separate initializations util file
