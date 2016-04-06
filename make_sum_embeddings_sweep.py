@@ -13,7 +13,7 @@ parser.add_argument("--host", type=str, default="", help="specific machine to ru
 parser.add_argument("--queue", type=str, default="jag")
 args = parser.parse_args()
 
-scrPath = "/scr/meric/LSTM-NLI"
+scrPath = "/afs/cs.stanford.edu/u/meric/scr/meric/LSTM-NLI"
 # Instructions: Configure the variables in this block, then run
 # the following on a machine with qsub access:
 # python make_sweep.py > my_sweep.sh
@@ -25,11 +25,11 @@ scrPath = "/scr/meric/LSTM-NLI"
 
 FIXED_PARAMETERS = {
     "trainData":    "/scr/nlp/data/snli_1.0/snli_1.0_train.jsonl",
-    "trainDataStats": "/afs/cs.stanford.edu/u/meric/scr/LSTM-NLI/data/train_dataStats.json",
+    "trainDataStats": "/afs/cs.stanford.edu/u/meric/scr/meric/LSTM-NLI/data/train_dataStats.json",
     "valData":    "/scr/nlp/data/snli_1.0/snli_1.0_dev.jsonl",
-    "valDataStats": "/afs/cs.stanford.edu/u/meric/scr/LSTM-NLI/data/dev_dataStats.json",
+    "valDataStats": "/afs/cs.stanford.edu/u/meric/scr/meric/LSTM-NLI/data/dev_dataStats.json",
     "testData": "/scr/nlp/data/snli_1.0/snli_1.0_test.jsonl",
-    "testDataStats": "/afs/cs.stanford.edu/u/meric/scr/LSTM-NLI/data/test_dataStats.json",
+    "testDataStats": "/afs/cs.stanford.edu/u/meric/scr/meric/LSTM-NLI/data/test_dataStats.json",
     "embedData": "/scr/nlp/data/glove_vecs/glove.6B.50d.txt",
     #"unrollSteps": "20",
     #"clipping_max_value":  "3.0",
@@ -96,7 +96,7 @@ for run_id in range(sweep_runs):
     learnRate = "learnRate" + "%.2g" %params["learnRate"]
     #L2reg = "L2regularization" + "%.2g" %params["L2regularization"]
 
-    experimentName = "sweep_snli_" + batchSize + "_" + numEpochs + "_" + learnRate
+    experimentName = "sweep_sum_embed_" + batchSize + "_" + numEpochs + "_" + learnRate
     experimentName = scrPath + "/log/" + experimentName + ".log"
     #flags += " --logPath" + " " + logPath
     flags += " --expName " + experimentName
@@ -105,5 +105,5 @@ for run_id in range(sweep_runs):
     if args.host != "":
         host = "-l host=" + args.host
 
-    print "export LSTM_NLI_FLAGS=\"" + flags + "\"; qsub -v LSTM_NLI_FLAGS train_LSTM_NLI.sh " + host + " -q " + queue
+    print "export SUM_EMBED_FLAGS=\"" + flags + "\"; qsub -v SUM_EMBED_FLAGS train_sum_embed.sh " + host + " -q " + queue
     print

@@ -54,12 +54,12 @@ class SumEmbeddingLayer(lasagne.layers.Layer):
         """
         return input.sum(axis=1)
 
-trainData = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/snli_1.0_train.jsonl"
-trainDataStats = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/train_dataStats.json"
-trainLabels = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/train_labels.json"
-valData = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/snli_1.0_dev.jsonl"
-valDataStats = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/dev_dataStats.json"
-valLabels = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/dev_labels.json"
+#trainData = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/snli_1.0_train.jsonl"
+#trainDataStats = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/train_dataStats.json"
+#trainLabels = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/train_labels.json"
+#valData = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/snli_1.0_dev.jsonl"
+#valDataStats = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/dev_dataStats.json"
+#valLabels = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/dev_labels.json"
 
 
 def form_mask_input(num_samples, seq_len, max_seq_len, pad_dir):
@@ -98,8 +98,8 @@ def main(exp_name, embed_data, train_data, train_data_stats, val_data, val_data_
 
     train_prem, train_hyp = generate_data(train_data, train_data_stats, "right", table, seq_len=unroll_steps)
     val_prem, val_hyp = generate_data(val_data, val_data_stats, "right", table, seq_len=unroll_steps)
-    train_labels = convertLabelsToMat(trainData)
-    val_labels = convertLabelsToMat(valData)
+    train_labels = convertLabelsToMat(train_data)
+    val_labels = convertLabelsToMat(val_data)
 
     # To test for overfitting capabilities of model
     if num_ex_to_train > 0:
