@@ -54,12 +54,12 @@ class SumEmbeddingLayer(lasagne.layers.Layer):
         """
         return input.sum(axis=1)
 
-#trainData = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/snli_1.0_train.jsonl"
-#trainDataStats = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/train_dataStats.json"
-#trainLabels = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/train_labels.json"
-#valData = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/snli_1.0_dev.jsonl"
-#valDataStats = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/dev_dataStats.json"
-#valLabels = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/dev_labels.json"
+trainData = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/snli_1.0_train.jsonl"
+trainDataStats = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/train_dataStats.json"
+trainLabels = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/train_labels.json"
+valData = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/snli_1.0_dev.jsonl"
+valDataStats = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/dev_dataStats.json"
+valLabels = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/dev_labels.json"
 
 
 def form_mask_input(num_samples, seq_len, max_seq_len, pad_dir):
@@ -147,7 +147,8 @@ def main(exp_name, embed_data, train_data, train_data_stats, val_data, val_data_
     cost = T.nnet.categorical_crossentropy(network_output, target_values).mean()
     compute_cost = theano.function([x_p, x_h, target_values], cost)
 
-    accuracy = T.mean(T.eq(T.argmax(network_output, axis=-1), T.argmax(target_values, axis=-1)))
+    accuracy = T.mean(T.eq(T.argmax(network_output, axis=-1), T.argmax(target_values, axis=-1)),
+                      dtype=theano.config.floatX)
     compute_accuracy = theano.function([x_p, x_h, target_values], accuracy)
 
     label_output = T.argmax(network_output, axis=-1)
