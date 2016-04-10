@@ -38,7 +38,7 @@ FIXED_PARAMETERS = {
     "numEpochs": "50",
     "regPenalty": "l2",
     "denseDim": 200,
-    "numDense": 2
+    "numDense": 4
 }
 
 # Tunable parameters.
@@ -95,11 +95,14 @@ for run_id in range(sweep_runs):
 
 
     batchSize = "batchSize" + FIXED_PARAMETERS["batchSize"]
-    numEpochs = "numEpochs" +  FIXED_PARAMETERS["numEpochs"]
+    numEpochs = "numEpochs" + FIXED_PARAMETERS["numEpochs"]
     learnRate = "learnRate" + "%.2g" %params["learnRate"]
-    #L2reg = "L2regularization" + "%.2g" %params["L2regularization"]
+    regCoeff = "regularization" + "%.2g" %params["regCoeff"]
+    numDense = "numDense" + "%g" %params["numDense"]
+    denseDim = "denseDim" + "%g" %params["denseDim"]
 
-    experimentName = "sweep_sum_embed_" + batchSize + "_" + numEpochs + "_" + learnRate
+    experimentName = "sweep_sum_embed_" + batchSize + "_" + numEpochs + "_" + learnRate + \
+                     "_" + regCoeff + "_" + numDense + "_" + denseDim
     experimentName = scrPath + "/log/" + experimentName + ".log"
     #flags += " --logPath" + " " + logPath
     flags += " --expName " + experimentName
