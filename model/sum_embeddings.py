@@ -9,7 +9,9 @@ sys.path.append("/Users/mihaileric/Documents/Research/Lasagne")
 import lasagne
 
 from lasagne.layers import EmbeddingLayer, InputLayer, DenseLayer, ConcatLayer, get_output
+from lasagne.regularization import regularize_layer_params_weighted, l2, l1, regularize_network_params
 from model.embeddings import EmbeddingTable
+from theano import printing
 from util.stats import Stats
 from util.utils import getMinibatchesIdx, convertLabelsToMat, generate_data
 
@@ -83,11 +85,32 @@ def convert_idx_to_label(idx_array):
 
 def main(exp_name, embed_data, train_data, train_data_stats, val_data, val_data_stats,
          test_data, test_data_stats, log_path, batch_size, num_epochs,
-         unroll_steps, learn_rate):
-
+         unroll_steps, learn_rate, num_dense, dense_dim, penalty, reg_coeff):
+    """
+    Main run function for training model.
+    :param exp_name:
+    :param embed_data:
+    :param train_data:
+    :param train_data_stats:
+    :param val_data:
+    :param val_data_stats:
+    :param test_data:
+    :param test_data_stats:
+    :param log_path:
+    :param batch_size:
+    :param num_epochs:
+    :param unroll_steps:
+    :param learn_rate:
+    :param num_dense: Number of dense fully connected layers to add after concatenation layer
+    :param dense_dim: Dimension of dense FC layers -- note this only applies if num_dense > 1
+    :param penalty: Penalty to use for regularization
+    :param reg_weight: Regularization coeff to use for each layer of network; may
+                       want to support different coefficient for different layers
+    :return:
+    """
     # Set random seed for deterministic results
     np.random.seed(0)
-    num_ex_to_train = -1
+    num_ex_to_train = 30
 
     # Load embedding table
     table = EmbeddingTable(embed_data)
@@ -96,8 +119,8 @@ def main(exp_name, embed_data, train_data, train_data_stats, val_data, val_data_
     embeddings_mat = table.embeddings
 
 
-    train_prem, train_hyp = generate_data(train_data, train_data_stats, "right", table, seq_len=unroll_steps)
-    val_prem, val_hyp = generate_data(val_data, val_data_stats, "right", table, seq_len=unroll_steps)
+    train_prem, train_hyp = generate_data(train_data, train_data_stats, "left", "right", table, seq_len=unroll_steps)
+    val_prem, val_hyp = generate_data(val_data, val_data_stats, "left", "right", table, seq_len=unroll_steps)
     train_labels = convertLabelsToMat(train_data)
     val_labels = convertLabelsToMat(val_data)
 
@@ -112,11 +135,6 @@ def main(exp_name, embed_data, train_data, train_data_stats, val_data, val_data_
     x_h = T.imatrix()
     target_values = T.fmatrix(name="target_output")
 
-    # Test points
-    x_prem = np.array([[0, 2], [0, 6]]).astype(np.int32)
-    x_hyp = np.array([[1, 13], [ 400001, 400001]]).astype(np.int32)
-    #x_target = np.array([0, 2, 2]).astype(np.float32)
-    x_target = np.array([[1, 0, 0], [1, 0, 0]]).astype(np.float32)
 
     # Embedding layer for premise
     l_in_prem = InputLayer((batch_size, unroll_steps))
@@ -136,17 +154,37 @@ def main(exp_name, embed_data, train_data, train_data_stats, val_data, val_data_
     l_embed_hyp_sum = SumEmbeddingLayer(l_embed_hyp)
     l_embed_prem_sum = SumEmbeddingLayer(l_embed_prem)
 
-
+    # Concatenate sentence embeddings for premise and hypothesis
     l_concat = ConcatLayer([l_embed_hyp_sum, l_embed_prem_sum])
 
-    # Note dense layer uses ReLu nonlinearity by default
-    l_dense = DenseLayer(l_concat, num_units=NUM_DENSE_UNITS, nonlinearity=lasagne.nonlinearities.softmax)
-    network_output = get_output(l_dense, {l_in_prem: x_p, l_in_hyp: x_h}) # Will have shape (batch_size, 3)
+    l_in = l_concat
+    l_output = l_concat
+    # Add 'num_dense' dense layers
+    if num_dense > 1:
+        for n in range(num_dense):
+            if n == num_dense-1:
+                l_output = DenseLayer(l_in, num_units=NUM_DENSE_UNITS, nonlinearity=lasagne.nonlinearities.softmax)
+            else:
+                l_in = DenseLayer(l_in, num_units=dense_dim, nonlinearity=lasagne.nonlinearities.tanh)
+    else:
+        l_output = DenseLayer(l_in, num_units=NUM_DENSE_UNITS, nonlinearity=lasagne.nonlinearities.softmax)
+
+    network_output = get_output(l_output, {l_in_prem: x_p, l_in_hyp: x_h}) # Will have shape (batch_size, 3)
     f_dense_output = theano.function([x_p, x_h], network_output, on_unused_input='warn')
 
-    cost = T.nnet.categorical_crossentropy(network_output, target_values).mean()
+    # Compute cost
+    if penalty == "l2":
+        p_metric = l2
+    elif penalty == "l1":
+        p_metric = l1
+
+    layers = lasagne.layers.get_all_layers(l_output)
+    layer_dict = {l: reg_coeff for l in layers}
+    reg_cost = reg_coeff * regularize_layer_params_weighted(layer_dict, p_metric)
+    cost = T.mean(T.nnet.categorical_crossentropy(network_output, target_values).mean()) + reg_cost
     compute_cost = theano.function([x_p, x_h, target_values], cost)
 
+    # Compute accuracy
     accuracy = T.mean(T.eq(T.argmax(network_output, axis=-1), T.argmax(target_values, axis=-1)),
                       dtype=theano.config.floatX)
     compute_accuracy = theano.function([x_p, x_h, target_values], accuracy)
@@ -155,15 +193,16 @@ def main(exp_name, embed_data, train_data, train_data_stats, val_data, val_data_
     predict = theano.function([x_p, x_h], label_output)
 
     # Define update/train functions
-    all_params = lasagne.layers.get_all_params(l_dense, trainable=True)
+    all_params = lasagne.layers.get_all_params(l_output, trainable=True)
     updates = lasagne.updates.rmsprop(cost, all_params, learn_rate)
     train = theano.function([x_p, x_h, target_values], cost, updates=updates)
 
     # TODO: Augment embedding layer to allow for masking inputs
 
     stats = Stats(exp_name)
-    acc_num = 50
+    acc_num = 10
 
+    #minibatches = getMinibatchesIdx(val_prem.shape[0], batch_size)
     minibatches = getMinibatchesIdx(train_prem.shape[0], batch_size)
     print("Training ...")
     try:
@@ -172,10 +211,16 @@ def main(exp_name, embed_data, train_data, train_data_stats, val_data, val_data_
             for _, minibatch in minibatches:
                 total_num_ex += len(minibatch)
                 stats.log("Processed {0} total examples in epoch {1}".format(str(total_num_ex),
-                                                                             str(epoch)))
+                                                                          str(epoch)))
+
+                #prem_batch = val_prem[minibatch]
+                #hyp_batch = val_hyp[minibatch]
+                #labels_batch = val_labels[minibatch]
+
                 prem_batch = train_prem[minibatch]
                 hyp_batch = train_hyp[minibatch]
                 labels_batch = train_labels[minibatch]
+
                 train(prem_batch, hyp_batch, labels_batch)
                 cost_val = compute_cost(prem_batch, hyp_batch, labels_batch)
 
@@ -195,4 +240,4 @@ if __name__ == '__main__':
     embedData = "/Users/mihaileric/Documents/Research/LSTM-NLI/data/glove.6B.50d.txt.gz"
     exp_name = "/Users/mihaileric/Documents/Research/LSTM-NLI/log/sum_embeddings.log"
     main(exp_name, embedData, trainData, trainDataStats, valData, valDataStats, "", "",
-         "", N_BATCH, NUM_EPOCHS, 18, LEARNING_RATE)
+         "", N_BATCH, NUM_EPOCHS, 18, LEARNING_RATE, num_dense=2, dense_dim=200, penalty="l2", reg_coeff=0.05)
