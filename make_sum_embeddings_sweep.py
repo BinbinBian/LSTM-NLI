@@ -35,13 +35,16 @@ FIXED_PARAMETERS = {
     #"clipping_max_value":  "3.0",
     "batchSize":  "32",
     #"numExamplesToTrain": "-1",
-    "numEpochs": "50"
+    "numEpochs": "50",
+    "penalty": "l2",
+    "denseDim": 200,
+    "numDense": 2
 }
 
 # Tunable parameters.
 SWEEP_PARAMETERS = {
     "learnRate":      (EXP, 0.0005, 0.01),
-    #"gradMax":         (LIN, 0.5, 10.),
+    "reg":         (EXP, 5e-7, 1e-4),
     "unrollSteps":      (LIN, 16, 23),
     #"L2regularization":   		  (EXP, 5e-7, 1e-4),
 }

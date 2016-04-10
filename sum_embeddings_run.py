@@ -49,8 +49,17 @@ if __name__ == "__main__":
                         help="number of steps to unroll LSTM layer")
     parser.add_argument("--expName", type=str,
                         help="full path to experiment name")
+    parser.add_argument("--numDense", type=int,
+                        help="number of dense layers")
+    parser.add_argument("--denseDim", type=int,
+                        help="dimension of dense layers")
+    parser.add_argument("--regPenalty", type=str,
+                        help="regularization penalty")
+    parser.add_argument("--regCoeff", type=float,
+                        help="coefficient of regularization")
     args = parser.parse_args()
 
     network = sum_embeddings.main(args.expName, args.embedData, args.trainData, args.trainDataStats,
                       args.valData, args.valDataStats, args.testData,
-                      args.testDataStats, args.logPath, args.batchSize, args.numEpochs, args.unrollSteps, args.learnRate)
+                      args.testDataStats, args.logPath, args.batchSize, args.numEpochs, args.unrollSteps, args.learnRate,
+                      args.numDense, args.denseDim, args.regPenalty, args.regCoeff)

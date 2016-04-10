@@ -263,7 +263,7 @@ def computeParamNorms(params, L2regularization):
     return paramSum
 
 
-def generate_data(data_json_file, data_stats, pad_dir, embed_table, seq_len):
+def generate_data(data_json_file, data_stats, pad_dir_prem, pad_dir_hyp, embed_table, seq_len):
     """
     Return data of form (num_sample, max_seq_len) where there
     are len in idx list if in masked indices
@@ -295,13 +295,18 @@ def generate_data(data_json_file, data_stats, pad_dir, embed_table, seq_len):
         prem_idx = np.array(embed_table.convertSentListToIdxMatrix(premiseSent))
         hyp_idx = np.array(embed_table.convertSentListToIdxMatrix(hypothesisSent))
 
-        if pad_dir == "right":
+        # Pad premise
+        if pad_dir_prem == "right":
             prem_mat[idx, 0:len(prem_idx)] = prem_idx[0:seq_len]
-            hyp_mat[idx, 0:len(hyp_idx)] = hyp_idx[0:seq_len]
-
-        elif pad_dir == "left":
+        elif pad_dir_prem == "left":
             prem_mat[idx, -len(prem_idx):] = prem_idx[0:seq_len]
+
+        # Pad hypothesis
+        if pad_dir_hyp == "right":
+            hyp_mat[idx, 0:len(hyp_idx)] = hyp_idx[0:seq_len]
+        elif pad_dir_hyp == "left":
             hyp_mat[idx, -len(hyp_idx):] = hyp_idx[0:seq_len]
+
 
     return prem_mat, hyp_mat
 
