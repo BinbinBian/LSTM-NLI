@@ -1,7 +1,8 @@
 """Defines a series of useful utility functions for various modules."""
-
+import cPickle as pickle
 import csv
 import json
+import lasagne
 import math
 import numpy as np
 import os
@@ -309,6 +310,44 @@ def generate_data(data_json_file, data_stats, pad_dir_prem, pad_dir_hyp, embed_t
 
 
     return prem_mat, hyp_mat
+
+# TODO: Test this
+def saveModel(l_output, file_name):
+    """
+    Save model parameter values
+    :param l_output: Final network output layer
+    :return:
+    """
+    all_params = lasagne.layers.get_all_params(l_output)
+    all_param_values = [p.get_value() for p in all_params]
+
+    # Hacky -- first array saved is a single entry array with number of
+    # arrays of being saved
+    num_params = len(all_param_values)
+    with open(file_name, 'w') as f:
+        np.save(f, np.array(num_params))
+        for param in all_param_values:
+            np.save(f, param)
+
+
+# TODO: Test this!
+def loadModel(l_output, file_name):
+    """
+    Load model from given file name.
+    :param file_name:
+    :return:
+    """
+    # Stores all numerical array values
+    all_param_values = []
+    with open(file_name, 'r') as f:
+        num_params = np.load(f)[0]
+        for _ in range(num_params):
+            all_param_values.append(np.load(f))
+
+
+    all_params = lasagne.layers.get_all_params(l_output)
+    for p, v in zip(all_params, all_param_values):
+        p.set_value(v)
 
 
 # TODO: Put these in a separate initializations util file
