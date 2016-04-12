@@ -311,6 +311,7 @@ def generate_data(data_json_file, data_stats, pad_dir_prem, pad_dir_hyp, embed_t
 
     return prem_mat, hyp_mat
 
+
 # TODO: Test this
 def saveModel(l_output, file_name):
     """

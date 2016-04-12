@@ -61,11 +61,6 @@ class Stats(object):
                      "Cost", numEx, cost)
 
 
-    def recordFinalTrainingTime(self, numEx):
-        self.logger.Log("Training complete after processing {1} examples! "
-                        "Total training time: {0} ".format((time.time() -
-                                                    self.startTime)/SEC_HOUR, numEx))
-
 
     def plotAndSaveFig(self, fileName, title, xLabel, yLabel, xCoord, yCoord):
         plt.plot(xCoord, yCoord)
@@ -129,5 +124,10 @@ class Stats(object):
 
         self.plotAndSaveFig(self.expName+"_devAcc.png", "Dev Accuracy vs. Num Examples", "Num Examples",
                      "Accuracy", devEx, devAcc)
+
+        self.logger.Log("Training complete! "
+                        "Total training time: {0} ".format(time.time() -
+                                                    self.startTime)/SEC_HOUR)
+
 
         self.reset()
